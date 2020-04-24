@@ -96,62 +96,66 @@
 
 
 (defn get-timer [{:keys [metrics ^MeterRegistry registry] :as m} name tags]
-  (let [timer (get-in @metrics [name tags])]
-    (cond
-      (instance? Timer timer) timer
-      (some? timer) (throw (ex-info "Metric already registered and is not a timer" {:name name, :tags tags, :metric timer}))
-      :else
-      (let [timer (.timer registry name ^Iterable (for [[k v] (merge (:tags m {}) tags)] (Tag/of (to-string k) (to-string v))))]
-        (swap! metrics assoc-in [name tags] timer)
-        timer))))
+  (when metrics
+    (let [timer (get-in @metrics [name tags])]
+      (cond
+        (instance? Timer timer) timer
+        (some? timer) (throw (ex-info "Metric already registered and is not a timer" {:name name, :tags tags, :metric timer}))
+        :else
+        (let [timer (.timer registry name ^Iterable (for [[k v] (merge (:tags m {}) tags)] (Tag/of (to-string k) (to-string v))))]
+          (swap! metrics assoc-in [name tags] timer)
+          timer)))))
 
 
 (defmacro with-timer [^Timer timer & body]
-  `(.record ^Timer ~timer ^Runnable (fn [] ~@body)))
+  `(let [f# (fn [] ~@body)]
+     (if ~timer (.record ^Timer ~timer f#) (f#))))
 
 
 (defmacro timed [metrics name tags & body]
-  `(let [timer# (get-timer ~metrics ~name ~tags)]
-     (.record ^Timer timer# ^Runnable (fn [] ~@body))))
+  `(let [timer# (get-timer ~metrics ~name ~tags), f# (fn [] ~@body)]
+     (if timer# (.record ^Timer timer# ^Runnable f#) (f#))))
 
 
 (defn get-counter [{:keys [metrics ^MeterRegistry registry] :as m} name tags]
-  (let [counter (get-in @metrics [name tags])]
-    (cond
-      (instance? Counter counter) counter
-      (some? counter) (throw (ex-info "Metric already registered and is not a counter" {:name name, :tags tags, :metric counter}))
-      :else
-      (let [counter (.counter registry name ^Iterable (for [[k v] (merge (:tags m {}) tags)] (Tag/of (to-string k) (to-string v))))]
-        (swap! metrics assoc-in [name tags] counter)
-        counter))))
+  (when metrics
+    (let [counter (get-in @metrics [name tags])]
+      (cond
+        (instance? Counter counter) counter
+        (some? counter) (throw (ex-info "Metric already registered and is not a counter" {:name name, :tags tags, :metric counter}))
+        :else
+        (let [counter (.counter registry name ^Iterable (for [[k v] (merge (:tags m {}) tags)] (Tag/of (to-string k) (to-string v))))]
+          (swap! metrics assoc-in [name tags] counter)
+          counter)))))
 
 
 (defn add
   ([^Counter counter]
-   (.increment counter))
+   (when counter (.increment counter)))
   ([^Counter counter n]
-   (.increment counter n))
+   (when counter (.increment counter n)))
   ([metrics name tags]
    (add metrics name tags 1.0))
   ([metrics name tags n]
    (let [counter (get-counter metrics name tags)]
-     (.increment counter n))))
+     (when counter (.increment counter n)))))
 
 
 (defn get-gauge [{:keys [metrics ^MeterRegistry registry] :as m} name tags gfn]
-  (let [gauge (get-in @metrics [name tags])]
-    (cond
-      (instance? Gauge gauge) gauge
-      (some? gauge) (throw (ex-info "Metric already registered and is not a gauge" {:name name, :tags tags, :metric gauge}))
-      :else
-      (let [supplier (reify Supplier (get [_] (gfn))),
-            tags ^Iterable (for [[k v] (merge (:tags m {}) tags)] (Tag/of (to-string k) (to-string v)))
-            gauge (.register (.tags (Gauge/builder name supplier) tags) registry)]
-        (swap! metrics assoc-in [name tags] gauge)
-        gauge))))
+  (when metrics
+    (let [gauge (get-in @metrics [name tags])]
+      (cond
+        (instance? Gauge gauge) gauge
+        (some? gauge) (throw (ex-info "Metric already registered and is not a gauge" {:name name, :tags tags, :metric gauge}))
+        :else
+        (let [supplier (reify Supplier (get [_] (gfn))),
+              tags ^Iterable (for [[k v] (merge (:tags m {}) tags)] (Tag/of (to-string k) (to-string v)))
+              gauge (.register (.tags (Gauge/builder name supplier) tags) registry)]
+          (swap! metrics assoc-in [name tags] gauge)
+          gauge)))))
 
 
 (defmacro defgauge [metrics name tags & body]
-  `(get-gauge ~metrics ~name ~tags (fn [] ~@body)))
+  `(when ~metrics (get-gauge ~metrics ~name ~tags (fn [] ~@body))))
 
 
