@@ -1,7 +1,8 @@
 (ns io.resonant.micrometer-test
   (:require
     [clojure.test :refer :all]
-    [io.resonant.micrometer :as m])
+    [io.resonant.micrometer :as m]
+    io.resonant.micrometer.prometheus)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)

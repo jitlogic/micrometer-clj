@@ -9,13 +9,6 @@
     (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)))
 
 
-(defn- found? [name]
-  (try
-    (Class/forName name true (.getContextClassLoader (Thread/currentThread)))
-    true
-    (catch ClassNotFoundException _ false)))
-
-
 (defn to-string [v]
   (cond
     (keyword? v) (name v)
@@ -39,19 +32,6 @@
     (= 0 (count configs)) (throw (ex-info "Cannot create empty composite registry" {}))
     (= 1 (count configs)) (create-registry (first configs))
     :else (CompositeMeterRegistry. Clock/SYSTEM (map create-registry configs))))
-
-
-(defmethod create-registry :prometheus [cfg]
-  (when-not (found? "io.micrometer.prometheus.PrometheusMeterRegistry")
-    (throw (ex-info "Missing jar dependency: io.micrometer/micrometer-registry-prometheus" {:cfg cfg})))
-  (eval
-    `(do
-       (let [config#
-             (reify io.micrometer.prometheus.PrometheusConfig
-               (get [_# k#] nil)
-               (prefix [_#] ~(:prefix cfg "resonant.metrics"))
-               (step [_#] (Duration/ofMillis ~(:step cfg 60000))))]
-         (io.micrometer.prometheus.PrometheusMeterRegistry. config#)))))
 
 
 
@@ -157,5 +137,4 @@
 
 (defmacro defgauge [metrics name tags & body]
   `(when ~metrics (get-gauge ~metrics ~name ~tags (fn [] ~@body))))
-
 
