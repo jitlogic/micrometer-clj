@@ -75,6 +75,11 @@
     (setup-jvm-metrics (:jvm-metrics cfg DEFAULT-JVM-METRICS))))
 
 
+(defn close [{:keys [^MeterRegistry registry]}]
+  (when registry
+    (.close registry)))
+
+
 (defn get-timer [{:keys [metrics ^MeterRegistry registry] :as m} name tags]
   (when metrics
     (let [timer (get-in @metrics [name tags])]
@@ -109,13 +114,13 @@
           counter)))))
 
 
-(defn add
+(defn inc-counter
   ([^Counter counter]
    (when counter (.increment counter)))
   ([^Counter counter n]
    (when counter (.increment counter n)))
   ([metrics name tags]
-   (add metrics name tags 1.0))
+   (inc-counter metrics name tags 1.0))
   ([metrics name tags n]
    (let [counter (get-counter metrics name tags)]
      (when counter (.increment counter n)))))

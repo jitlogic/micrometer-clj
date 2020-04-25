@@ -45,13 +45,13 @@
   (testing "Counter metrics registration and usage"
     (let [metrics (m/metrics SIMPLE),
           ^Counter counter (m/get-counter metrics "test" {:foo "bar"})]
-      (m/add counter)
+      (m/inc-counter counter)
       (is (= 1.0 (.count counter)))
-      (m/add nil)
+      (m/inc-counter nil)
       (is (= 1.0 (.count counter)))
-      (m/add metrics "test" {:foo "bar"})
+      (m/inc-counter metrics "test" {:foo "bar"})
       (is (= 2.0 (.count counter)))
-      (m/add nil "test" {:foo "bar"})
+      (m/inc-counter nil "test" {:foo "bar"})
       (is (= 2.0 (.count counter))))))
 
 
