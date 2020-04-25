@@ -23,16 +23,16 @@
 (defmulti create-registry "Returns raw meter registry object from micrometer library." :type)
 
 
-(defmethod create-registry :simple [_]
-  (SimpleMeterRegistry.))
+(defmethod create-registry :simple [config]
+  {:config config, :type :simple,
+   :registry (SimpleMeterRegistry.)})
 
 
-(defmethod create-registry :composite [{:keys [configs]}]
-  (cond
-    (= 0 (count configs)) (throw (ex-info "Cannot create empty composite registry" {}))
-    (= 1 (count configs)) (create-registry (first configs))
-    :else (CompositeMeterRegistry. Clock/SYSTEM (map create-registry configs))))
-
+(defmethod create-registry :composite [{:keys [configs] :as config}]
+  (let [components (into {} (for [[k v] configs] {k (create-registry v)}))]
+    (when (= 0 (count components)) (throw (ex-info "Cannot create empty composite registry" {:config config})))
+    {:config   config, :components components, :type :composite,
+     :registry (CompositeMeterRegistry. Clock/SYSTEM (map :registry (vals components)))}))
 
 
 (defmethod create-registry :default [cfg]
@@ -68,9 +68,10 @@
 
 (defn metrics [cfg]
   (doto
-    {:metrics  (atom {})
-     :tags     (:tags cfg {})
-     :registry (create-registry cfg)}
+    (assoc
+      (create-registry cfg)
+      :metrics (atom {})
+      :tags    (:tags cfg {}))
     (setup-os-metrics (:os-metrics cfg DEFAULT-OS-METRICS))
     (setup-jvm-metrics (:jvm-metrics cfg DEFAULT-JVM-METRICS))))
 
