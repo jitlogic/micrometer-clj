@@ -69,3 +69,16 @@
   (testing "Register standard JVM and OS metrics"
     (let [{:keys [^MeterRegistry registry]} (m/metrics {:type :simple})]
       (is (< 32 (.size (.getMeters registry)))))))
+
+(deftest test-list-query-meters
+  (let [metrics (m/metrics {:type :simple})
+        lm (m/list-meters metrics)
+        qm1 (m/query-meters metrics "jvm.memory.used")
+        qm2 (m/query-meters metrics "jvm.memory.used" "area" "heap")]
+    (is (vector? (:names lm)))
+    (is (contains? (set (:names lm)) "jvm.memory.used"))
+    (is (number? (-> qm1 :measurements first :value)))
+    (is (vector? (get-in qm1 [:availableTags "id"])))
+    (is (vector? (get-in qm2 [:availableTags "id"])))
+    (is (> (count (get-in qm1 [:availableTags "id"])) (count (get-in qm2 [:availableTags "id"]))))
+    ))

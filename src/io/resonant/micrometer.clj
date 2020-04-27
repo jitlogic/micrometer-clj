@@ -4,9 +4,10 @@
     (java.util.function Supplier)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
-    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge)
+    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
-    (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)))
+    (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
+    (io.micrometer.core.instrument.search Search)))
 
 
 (defn to-string [v]
@@ -79,6 +80,48 @@
 (defn close [{:keys [^MeterRegistry registry]}]
   (when registry
     (.close registry)))
+
+
+(defmulti scrape "Returns data as registry-specific data or nil when given registry type cannot be scraped" :type)
+
+
+(defmethod scrape :default [_] nil)
+
+
+(defn list-meters [{:keys [^MeterRegistry registry]}]
+  (let [names (into #{} (for [^Meter meter (.getMeters registry)] (.getName (.getId meter))))]
+    {:names (into [] names)}))
+
+
+(defn- merge-stats [stats1 stats2]
+  (if (= 1 (count stats1))
+    [[(-> stats1 first first) (+ (-> stats1 first second) (-> stats2 first second))]]
+    (for [[[ss1 sv1] [_ sv2]] (map vector stats1 stats2)] [ss1 (+ sv1 sv2)])))
+
+
+(defn- acc-tags [acc [tagk tagv]]
+  (assoc acc tagk (conj (get acc tagk #{}) tagv)))
+
+
+(defn- match-meter [name tagk tagv m]
+  (let [^Meter$Id id (.getId m)]
+    (and
+      (= name (.getName id))
+      (or (nil? tagk) (first (for [^Tag t (.getTagsAsIterable id) :when (and (= tagk (.getKey t)) (= tagv (.getValue t)))] true))))))
+
+
+(defn query-meters [{:keys [^MeterRegistry registry]} name & [tagk tagv]]
+  (let [meters (for [^Meter m (.getMeters registry) :when (match-meter name tagk tagv m)] m)]
+    (when-not (empty? meters)
+      (let [^Meter meter (first meters), mdesc (.getDescription (.getId meter)), munit (.getBaseUnit (.getId meter)),
+            stats (for [^Meter m meters] (for [^Measurement s (.measure m)] [(.getStatistic s) (.getValue s) ]))
+            tags (for [^Meter m meters, ^Tag t (.getTagsAsIterable (.getId m)) ] [(.getKey t) (.getValue t)])]
+        (merge
+          {:name          (.getName (.getId meter)),
+           :measurements  (for [[s v] (reduce merge-stats stats)] {:statistic (str s), :value v})
+           :availableTags (into {} (for [[k v] (reduce acc-tags {} tags)] {k (vec v)}))}
+          (when mdesc {:description mdesc})
+          (when munit {:baseUnit munit}))))))
 
 
 (defn get-timer [{:keys [metrics ^MeterRegistry registry] :as m} name tags]
