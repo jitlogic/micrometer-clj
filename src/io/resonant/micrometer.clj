@@ -1,13 +1,11 @@
 (ns io.resonant.micrometer
   (:import
-    (java.time Duration)
     (java.util.function Supplier)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
-    (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
-    (io.micrometer.core.instrument.search Search)))
+    (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)))
 
 
 (defn to-string [v]
@@ -17,7 +15,7 @@
     :else (str v)))
 
 
-(defn to-tags [tags]
+(defn ^Iterable to-tags [tags]
   (for [[k v] tags] (Tag/of (to-string k) (to-string v))))
 
 
@@ -43,36 +41,42 @@
 (def DEFAULT-JVM-METRICS [:classes :memory :gc :threads :jit :heap])
 
 
-(defn setup-jvm-metrics [{:keys [registry tags] :as metrics} jvm-metrics]
+(defn setup-jvm-metrics [{:keys [registry] :as metrics} jvm-metrics]
   (doseq [metric jvm-metrics]
     (case metric
-      :classes (.bindTo (ClassLoaderMetrics. (to-tags tags)) registry)
-      :memory (.bindTo (JvmMemoryMetrics. (to-tags tags)) registry)
-      :gc (.bindTo (JvmGcMetrics. (to-tags tags)) registry)
-      :threads (.bindTo (JvmThreadMetrics. (to-tags tags)) registry)
-      :jit (.bindTo (JvmCompilationMetrics. (to-tags tags)) registry)
-      :heap (.bindTo (JvmHeapPressureMetrics. (to-tags tags) (Duration/ofMinutes 5) (Duration/ofMinutes 5)) registry)
+      :classes (.bindTo (ClassLoaderMetrics.) registry)
+      :memory (.bindTo (JvmMemoryMetrics.) registry)
+      :gc (.bindTo (JvmGcMetrics.) registry)
+      :threads (.bindTo (JvmThreadMetrics.) registry)
+      :jit (.bindTo (JvmCompilationMetrics.) registry)
+      :heap (.bindTo (JvmHeapPressureMetrics.) registry)
       (throw (ex-info "Illegal JVM metric" {:metric metric, :allowed DEFAULT-JVM-METRICS})))))
 
 
 (def DEFAULT-OS-METRICS [:files :cpu :uptime])
 
 
-(defn setup-os-metrics [{:keys [registry tags]} os-metrics]
+(defn setup-os-metrics [{:keys [registry]} os-metrics]
   (doseq [metric os-metrics]
     (case metric
-      :files (.bindTo (FileDescriptorMetrics. (to-tags tags)) registry)
-      :cpu (.bindTo (ProcessorMetrics. (to-tags tags)) registry)
-      :uptime (.bindTo (UptimeMetrics. (to-tags tags)) registry)
+      :files (.bindTo (FileDescriptorMetrics.) registry)
+      :cpu (.bindTo (ProcessorMetrics.) registry)
+      :uptime (.bindTo (UptimeMetrics.) registry)
       (throw (ex-info "Illegal OS metric" {:metric metric, :allowed DEFAULT-OS-METRICS})))))
+
+
+(defn setup-common-tags [{:keys [registry]} tags]
+  (when-not (empty? tags)
+    (let [cfg (.config registry)]
+      (.commonTags cfg (to-tags tags)))))
 
 
 (defn metrics [cfg]
   (doto
     (assoc
       (create-registry cfg)
-      :metrics (atom {})
-      :tags    (:tags cfg {}))
+      :metrics (atom {}))
+    (setup-common-tags (:tags cfg {}))
     (setup-os-metrics (:os-metrics cfg DEFAULT-OS-METRICS))
     (setup-jvm-metrics (:jvm-metrics cfg DEFAULT-JVM-METRICS))))
 
@@ -124,14 +128,14 @@
           (when munit {:baseUnit munit}))))))
 
 
-(defn get-timer [{:keys [metrics ^MeterRegistry registry] :as m} name tags]
+(defn get-timer [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
   (when metrics
     (let [timer (get-in @metrics [name tags])]
       (cond
         (instance? Timer timer) timer
         (some? timer) (throw (ex-info "Metric already registered and is not a timer" {:name name, :tags tags, :metric timer}))
         :else
-        (let [timer (.timer registry name ^Iterable (for [[k v] (merge (:tags m {}) tags)] (Tag/of (to-string k) (to-string v))))]
+        (let [timer (.timer registry name (to-tags tags))]
           (swap! metrics assoc-in [name tags] timer)
           timer)))))
 
@@ -146,14 +150,14 @@
      (if timer# (.record ^Timer timer# ^Runnable f#) (f#))))
 
 
-(defn get-counter [{:keys [metrics ^MeterRegistry registry] :as m} name tags]
+(defn get-counter [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
   (when metrics
     (let [counter (get-in @metrics [name tags])]
       (cond
         (instance? Counter counter) counter
         (some? counter) (throw (ex-info "Metric already registered and is not a counter" {:name name, :tags tags, :metric counter}))
         :else
-        (let [counter (.counter registry name ^Iterable (for [[k v] (merge (:tags m {}) tags)] (Tag/of (to-string k) (to-string v))))]
+        (let [counter (.counter registry name (to-tags tags))]
           (swap! metrics assoc-in [name tags] counter)
           counter)))))
 
@@ -178,8 +182,7 @@
         (some? gauge) (throw (ex-info "Metric already registered and is not a gauge" {:name name, :tags tags, :metric gauge}))
         :else
         (let [supplier (reify Supplier (get [_] (gfn))),
-              tags ^Iterable (for [[k v] (merge (:tags m {}) tags)] (Tag/of (to-string k) (to-string v)))
-              gauge (.register (.tags (Gauge/builder name supplier) tags) registry)]
+              gauge (.register (.tags (Gauge/builder name supplier) (to-tags tags)) registry)]
           (swap! metrics assoc-in [name tags] gauge)
           gauge)))))
 
