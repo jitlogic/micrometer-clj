@@ -4,14 +4,16 @@
     [io.resonant.micrometer :as m]
     io.resonant.micrometer.prometheus
     io.resonant.micrometer.elastic
-    io.resonant.micrometer.opentsdb)
+    io.resonant.micrometer.opentsdb
+    io.resonant.micrometer.graphite)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.prometheus PrometheusMeterRegistry)
     (io.micrometer.core.instrument Timer Counter MeterRegistry)
     (io.micrometer.elastic ElasticMeterRegistry)
-    (io.micrometer.opentsdb OpenTSDBMeterRegistry)))
+    (io.micrometer.opentsdb OpenTSDBMeterRegistry)
+    (io.micrometer.graphite GraphiteMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -27,7 +29,9 @@
     (let [registry (:registry (m/metrics {:type :opentsdb, :jvm-metrics [], :os-metrics [], :enabled false}))]
       (is (instance? OpenTSDBMeterRegistry registry))
       (.close registry))
-    ))
+    (let [registry (:registry (m/metrics {:type :graphite, :jvm-metrics [], :os-metrics [], :enabled false}))]
+      (is (instance? GraphiteMeterRegistry registry))
+      (.close registry))))
 
 
 (deftest test-timer-metrics
