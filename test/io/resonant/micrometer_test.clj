@@ -3,13 +3,15 @@
     [clojure.test :refer :all]
     [io.resonant.micrometer :as m]
     io.resonant.micrometer.prometheus
-    io.resonant.micrometer.elastic)
+    io.resonant.micrometer.elastic
+    io.resonant.micrometer.opentsdb)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.prometheus PrometheusMeterRegistry)
     (io.micrometer.core.instrument Timer Counter MeterRegistry)
-    (io.micrometer.elastic ElasticMeterRegistry)))
+    (io.micrometer.elastic ElasticMeterRegistry)
+    (io.micrometer.opentsdb OpenTSDBMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -21,7 +23,11 @@
     (is (instance? PrometheusMeterRegistry (:registry (m/metrics {:type :prometheus :jvm-metrics [], :os-metrics []}))))
     (let [registry (:registry (m/metrics {:type :elastic, :jvm-metrics [], :os-metrics [], :enabled false}))]
       (is (instance? ElasticMeterRegistry registry))
-      (.close registry))))
+      (.close registry))
+    (let [registry (:registry (m/metrics {:type :opentsdb, :jvm-metrics [], :os-metrics [], :enabled false}))]
+      (is (instance? OpenTSDBMeterRegistry registry))
+      (.close registry))
+    ))
 
 
 (deftest test-timer-metrics

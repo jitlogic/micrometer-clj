@@ -7,5 +7,6 @@
   [[org.clojure/clojure "1.10.1"]
    [io.micrometer/micrometer-core "1.4.1"]
    [io.micrometer/micrometer-registry-prometheus "1.4.1" :scope "provided"]
-   [io.micrometer/micrometer-registry-elastic "1.4.1" :scope "provided"]]
+   [io.micrometer/micrometer-registry-elastic "1.4.1" :scope "provided"]
+   [io.micrometer/micrometer-registry-opentsdb "1.4.1" :scope "provided"]]
   :repl-options {:init-ns io.resonant.micrometer})
