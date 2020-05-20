@@ -19,7 +19,7 @@
     (is (instance? SimpleMeterRegistry (:registry (m/metrics SIMPLE))))
     (is (instance? CompositeMeterRegistry (:registry (m/metrics {:type :composite, :configs {:test1 SIMPLE :test2 SIMPLE}}))))
     (is (instance? PrometheusMeterRegistry (:registry (m/metrics {:type :prometheus :jvm-metrics [], :os-metrics []}))))
-    (let [registry (:registry (m/metrics {:type :elastic, :jvm-metrics [], :is-metrics []}))]
+    (let [registry (:registry (m/metrics {:type :elastic, :jvm-metrics [], :os-metrics [], :enabled false}))]
       (is (instance? ElasticMeterRegistry registry))
       (.close registry))))
 
