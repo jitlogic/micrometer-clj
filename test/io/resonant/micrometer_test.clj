@@ -2,12 +2,14 @@
   (:require
     [clojure.test :refer :all]
     [io.resonant.micrometer :as m]
-    io.resonant.micrometer.prometheus)
+    io.resonant.micrometer.prometheus
+    io.resonant.micrometer.elastic)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.prometheus PrometheusMeterRegistry)
-    (io.micrometer.core.instrument Timer Counter MeterRegistry)))
+    (io.micrometer.core.instrument Timer Counter MeterRegistry)
+    (io.micrometer.elastic ElasticMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -16,7 +18,10 @@
   (testing "Meter registries creation multimethod"
     (is (instance? SimpleMeterRegistry (:registry (m/metrics SIMPLE))))
     (is (instance? CompositeMeterRegistry (:registry (m/metrics {:type :composite, :configs {:test1 SIMPLE :test2 SIMPLE}}))))
-    (is (instance? PrometheusMeterRegistry (:registry (m/metrics {:type :prometheus :jvm-metrics [], :os-metrics []}))))))
+    (is (instance? PrometheusMeterRegistry (:registry (m/metrics {:type :prometheus :jvm-metrics [], :os-metrics []}))))
+    (let [registry (:registry (m/metrics {:type :elastic, :jvm-metrics [], :is-metrics []}))]
+      (is (instance? ElasticMeterRegistry registry))
+      (.close registry))))
 
 
 (deftest test-timer-metrics
