@@ -191,11 +191,11 @@
 
 (defmacro with-timer [^Timer timer & body]
   `(let [f# (fn [] ~@body)]
-     (if ~timer (.record ^Timer ~timer f#) (f#))))
+     (if ~timer (.recordCallable ^Timer ~timer f#) (f#))))
 
 (defmacro timed [metrics name tags & body]
   `(let [timer# (get-timer ~metrics ~name ~tags), f# (fn [] ~@body)]
-     (if timer# (.record ^Timer timer# ^Runnable f#) (f#))))
+     (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#))))
 
 (defn get-task-timer
   [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
@@ -210,11 +210,11 @@
 
 (defmacro with-task-timer [^LongTaskTimer timer & body]
   `(let [f# (fn [] ~@body)]
-     (if ~timer (.record ^LongTaskTimer ~timer f#) (f#))))
+     (if ~timer (.recordCallable ^LongTaskTimer ~timer f#) (f#))))
 
 (defmacro task-timed [metrics name tags & body]
   `(let [timer# (get-task-timer ~metrics ~name ~tags), f# (fn [] ~@body)]
-     (if timer# (.record ^LongTaskTimer timer# ^Runnable f#) (f#))))
+     (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#))))
 
 (defn get-counter [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
   (when metrics

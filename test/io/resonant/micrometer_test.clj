@@ -44,7 +44,7 @@
     (let [metrics (m/metrics SIMPLE), tcnt (atom 0)
           ^Timer timer (m/get-timer metrics "test" {:foo "bar"})]
       ; test timer (directly used)
-      (m/with-timer timer (Thread/sleep 2))
+      (is (= 42 (m/with-timer timer (Thread/sleep 2) 42)))
       (is (= 2 (.size (.getTags (.getId timer)))))
       (is (= 1 (.count timer)))
       ; test null timer
@@ -52,7 +52,7 @@
       (is (= 1 (.count timer)))
       (is (= 1 @tcnt))
       ; test indirectly used timer
-      (m/timed metrics "test" {:foo "bar"} (Thread/sleep 1) (Thread/sleep 1))
+      (is (= 42 (m/timed metrics "test" {:foo "bar"} (Thread/sleep 1) (Thread/sleep 1) 42)))
       (is (= 2 (.count timer)))
       ; test indireclty used null timer
       (m/timed nil "test" {:foo "bar"} (swap! tcnt inc))
@@ -63,20 +63,24 @@
   (testing "Long task timer registration and usage"
     (let [metrics (m/metrics SIMPLE), tcnt (atom 0),
           ^LongTaskTimer timer (m/get-task-timer metrics "test" {:foo "bar"})]
-      (m/with-task-timer timer
-        (Thread/sleep 2)
-        (is (> (.duration timer TimeUnit/MILLISECONDS) 0.0))
-        (swap! tcnt inc)
-        (is (= 1) (.activeTasks timer)))
+      (is (= 42)
+        (m/with-task-timer timer
+          (Thread/sleep 2)
+          (is (> (.duration timer TimeUnit/MILLISECONDS) 0.0))
+          (swap! tcnt inc)
+          (is (= 1) (.activeTasks timer))
+          42))
       (is (= 1 @tcnt))
       (is (= 2 (.size (.getTags (.getId timer)))))
       (is (= (.duration timer TimeUnit/MILLISECONDS) 0.0))
       (is (= (.activeTasks timer) 0))
-      (m/task-timed metrics "test" {:foo "bar"}
-        (Thread/sleep 2)
-        (is (> (.duration timer TimeUnit/MILLISECONDS) 0.0))
-        (swap! tcnt inc)
-        (is (= 1) (.activeTasks timer)))
+      (is (= 42)
+        (m/task-timed metrics "test" {:foo "bar"}
+          (Thread/sleep 2)
+          (is (> (.duration timer TimeUnit/MILLISECONDS) 0.0))
+          (swap! tcnt inc)
+          (is (= 1) (.activeTasks timer))
+          42))
       (is (= 2 @tcnt))
       )))
 
