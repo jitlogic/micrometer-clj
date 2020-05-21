@@ -12,11 +12,12 @@
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.prometheus PrometheusMeterRegistry)
-    (io.micrometer.core.instrument Timer Counter MeterRegistry)
+    (io.micrometer.core.instrument Timer Counter MeterRegistry LongTaskTimer)
     (io.micrometer.elastic ElasticMeterRegistry)
     (io.micrometer.opentsdb OpenTSDBMeterRegistry)
     (io.micrometer.graphite GraphiteMeterRegistry)
-    (io.micrometer.influx InfluxMeterRegistry)))
+    (io.micrometer.influx InfluxMeterRegistry)
+    (java.util.concurrent TimeUnit)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -53,6 +54,27 @@
       (m/timed nil "test" {:foo "bar"} (swap! tcnt inc))
       (is (= 2 (.count timer)))
       (is (= 2 @tcnt)))))
+
+(deftest test-long-task-timer-metrics
+  (testing "Long task timer registration and usage"
+    (let [metrics (m/metrics SIMPLE), tcnt (atom 0),
+          ^LongTaskTimer timer (m/get-task-timer metrics "test" {:foo "bar"})]
+      (m/with-task-timer timer
+        (Thread/sleep 2)
+        (is (> (.duration timer TimeUnit/MILLISECONDS) 0.0))
+        (swap! tcnt inc)
+        (is (= 1) (.activeTasks timer)))
+      (is (= 1 @tcnt))
+      (is (= 2 (.size (.getTags (.getId timer)))))
+      (is (= (.duration timer TimeUnit/MILLISECONDS) 0.0))
+      (is (= (.activeTasks timer) 0))
+      (m/task-timed metrics "test" {:foo "bar"}
+        (Thread/sleep 2)
+        (is (> (.duration timer TimeUnit/MILLISECONDS) 0.0))
+        (swap! tcnt inc)
+        (is (= 1) (.activeTasks timer)))
+      (is (= 2 @tcnt))
+      )))
 
 (deftest test-counter-metrics
   (testing "Counter metrics registration and usage"

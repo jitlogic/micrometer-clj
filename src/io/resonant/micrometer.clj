@@ -3,7 +3,7 @@
     (java.util.function Supplier Function Predicate)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
-    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id)
+    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id LongTaskTimer)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
     (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
     (io.micrometer.core.instrument.config MeterFilter MeterFilterReply)
@@ -196,6 +196,25 @@
 (defmacro timed [metrics name tags & body]
   `(let [timer# (get-timer ~metrics ~name ~tags), f# (fn [] ~@body)]
      (if timer# (.record ^Timer timer# ^Runnable f#) (f#))))
+
+(defn get-task-timer
+  [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
+  (let [timer (get-in @metrics [name tags])]
+    (cond
+      (instance? LongTaskTimer timer) timer
+      (some? timer) (throw (ex-info "Metric already registered and is not long task timer" {:name name, :tags tags, :metric timer}))
+      :else
+      (let [timer (.longTaskTimer (.more registry)name (to-tags tags))]
+        (swap! metrics assoc-in [name tags] timer)
+        timer))))
+
+(defmacro with-task-timer [^LongTaskTimer timer & body]
+  `(let [f# (fn [] ~@body)]
+     (if ~timer (.record ^LongTaskTimer ~timer f#) (f#))))
+
+(defmacro task-timed [metrics name tags & body]
+  `(let [timer# (get-task-timer ~metrics ~name ~tags), f# (fn [] ~@body)]
+     (if timer# (.record ^LongTaskTimer timer# ^Runnable f#) (f#))))
 
 (defn get-counter [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
   (when metrics
