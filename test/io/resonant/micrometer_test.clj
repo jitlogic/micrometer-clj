@@ -99,9 +99,12 @@
              :rename-tags [{:prefix "jvm", :from "foo", :to "bar"}]
              :ignore-tags ["foo" "bar"]
              :replace-tags [{:from "foo", :to clojure.string/upper-case, :except ["baz" "bag"]}]
-             :meter-filters [{:accept (partial re-matches #"^foo")} {:deny (constantly true)} {:deny-unless false}]
+             :meter-filters [{:accept (partial re-matches #"^foo")}
+                             {:deny (constantly true)}
+                             {:deny-unless false},
+                             {:raw-map identity}
+                             {:raw-accept identity}]
              :max-metrics 100,
              :tag-limits [{:prefix "jvm", :tag "foo", :max-vals 10, :on-limit {:deny true}}]
-             :val-limits [{:prefix "jvm", :min 0, :max 10}]
-             }]
+             :val-limits [{:prefix "jvm", :min 0, :max 10}]}]
     (is (some? (:registry (m/metrics cfg))))))

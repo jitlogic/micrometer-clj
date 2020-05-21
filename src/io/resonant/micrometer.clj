@@ -6,7 +6,7 @@
     (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
     (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
-    (io.micrometer.core.instrument.config MeterFilter)))
+    (io.micrometer.core.instrument.config MeterFilter MeterFilterReply)))
 
 (defn to-string [v]
   (cond
@@ -69,11 +69,13 @@
   (.meterFilter (.config registry) mf))
 
 (defn- make-filter [f]
-  (let [mode (key (first f)), ffn (val (first f)), p (to-predicate ffn)]
+  (let [mode (key (first f)), ffn (val (first f))]
     (case mode
-      :deny-unless (MeterFilter/denyUnless p)
-      :accept (MeterFilter/accept p)
-      :deny (MeterFilter/deny p)
+      :deny-unless (MeterFilter/denyUnless (to-predicate ffn))
+      :accept (MeterFilter/accept (to-predicate ffn))
+      :deny (MeterFilter/deny (to-predicate ffn))
+      :raw-map (reify MeterFilter  (^Meter$Id map [_ ^Meter$Id id] (ffn id)))
+      :raw-accept (reify MeterFilter (^MeterFilterReply accept [_ ^Meter$Id id]  (ffn id)))
       (throw (ex-info "unknown filter mode" {:mode mode})))))
 
 (defn- setup-rename-tags [metrics rename-tags]
