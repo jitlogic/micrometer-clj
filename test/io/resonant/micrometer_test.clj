@@ -12,6 +12,7 @@
     io.resonant.micrometer.atlas
     io.resonant.micrometer.statsd
     io.resonant.micrometer.newrelic
+    io.resonant.micrometer.appoptics
     clojure.string)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
@@ -27,7 +28,8 @@
     (io.micrometer.azuremonitor AzureMonitorMeterRegistry)
     (io.micrometer.atlas AtlasMeterRegistry)
     (io.micrometer.statsd StatsdMeterRegistry)
-    (io.micrometer.newrelic NewRelicMeterRegistry)))
+    (io.micrometer.newrelic NewRelicMeterRegistry)
+    (io.micrometer.appoptics AppOpticsMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -48,7 +50,8 @@
     (ccr AzureMonitorMeterRegistry :azure)
     (ccr AtlasMeterRegistry :atlas)
     (ccr StatsdMeterRegistry :statsd)
-    (ccr NewRelicMeterRegistry :newrelic :api-key "x", :account-id "x")))
+    (ccr NewRelicMeterRegistry :newrelic :api-key "x", :account-id "x")
+    (ccr AppOpticsMeterRegistry :appoptics :api-token "x")))
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."

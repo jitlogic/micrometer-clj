@@ -16,5 +16,6 @@
    [io.micrometer/micrometer-registry-cloudwatch2 "1.5.1" :scope "provided"]
    [io.micrometer/micrometer-registry-atlas "1.5.1" :scope "provided"]
    [io.micrometer/micrometer-registry-statsd "1.5.1" :scope "provided"]
-   [io.micrometer/micrometer-registry-new-relic "1.5.1" :scope "provided"]]
+   [io.micrometer/micrometer-registry-new-relic "1.5.1" :scope "provided"]
+   [io.micrometer/micrometer-registry-appoptics "1.5.1" :scope "provided"]]
   :repl-options {:init-ns io.resonant.micrometer})
