@@ -13,5 +13,6 @@
    [io.micrometer/micrometer-registry-influx "1.5.1" :scope "provided"]
    [io.micrometer/micrometer-registry-jmx "1.5.1" :scope "provided"]
    [io.micrometer/micrometer-registry-azure-monitor "1.5.1" :scope "provided"]
-   [io.micrometer/micrometer-registry-cloudwatch2 "1.5.1" :scope "provided"]]
+   [io.micrometer/micrometer-registry-cloudwatch2 "1.5.1" :scope "provided"]
+   [io.micrometer/micrometer-registry-atlas "1.5.1" :scope "provided"]]
   :repl-options {:init-ns io.resonant.micrometer})
