@@ -17,6 +17,7 @@
     io.resonant.micrometer.ganglia
     io.resonant.micrometer.dynatrace
     io.resonant.micrometer.wavefront
+    io.resonant.micrometer.humio
     clojure.string)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
@@ -37,7 +38,8 @@
     (io.micrometer.datadog DatadogMeterRegistry)
     (io.micrometer.ganglia GangliaMeterRegistry)
     (io.micrometer.dynatrace DynatraceMeterRegistry)
-    (io.micrometer.wavefront WavefrontMeterRegistry)))
+    (io.micrometer.wavefront WavefrontMeterRegistry)
+    (io.micrometer.humio HumioMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -63,7 +65,8 @@
     (ccr DatadogMeterRegistry :datadog :api-key "x")
     (ccr GangliaMeterRegistry :ganglia)
     (ccr DynatraceMeterRegistry :dynatrace :api-token "x" :url "http://localhost" :device-id "1")
-    (ccr WavefrontMeterRegistry :wavefront :api-token "x")))
+    (ccr WavefrontMeterRegistry :wavefront :api-token "x")
+    (ccr HumioMeterRegistry :humio :api-token "x")))
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."
