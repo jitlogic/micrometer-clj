@@ -6,7 +6,9 @@
     (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
     (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
-    (io.micrometer.core.instrument.config MeterFilter MeterFilterReply)))
+    (io.micrometer.core.instrument.config MeterFilter MeterFilterReply)
+    (io.micrometer.core.instrument.distribution DistributionStatisticConfig DistributionStatisticConfig$Builder)
+    (java.time Duration)))
 
 (defn to-string [v]
   (cond
@@ -65,17 +67,35 @@
       :uptime (.bindTo (UptimeMetrics.) registry)
       (throw (ex-info "Illegal OS metric" {:metric metric, :allowed DEFAULT-OS-METRICS})))))
 
+(defn- distribution-statistics-config [{:keys [histogram? percentiles precision sla min-val max-val expiry buf-len]}]
+  (let [b (DistributionStatisticConfig/builder)]
+    (when (some? histogram?) (.percentilesHistogram b histogram?))
+    (when percentiles (.percentiles b (double-array percentiles)))
+    (when precision (.percentilePrecision b precision))
+    (when sla (.serviceLevelObjectives b (double-array sla)))
+    (when min-val (.minimumExpectedValue b ^Double (double min-val)))
+    (when max-val (.maximumExpectedValue b ^Double (double max-val)))
+    (when expiry (.expiry b (Duration/ofMillis expiry)))
+    (when buf-len (.bufferLength b buf-len))))
+
 (defn- meter-filter [{:keys [registry]} mf]
   (.meterFilter (.config registry) mf))
 
-(defn- make-filter [f]
-  (let [mode (key (first f)), ffn (val (first f))]
+(defn- dist-stats-filter [{:keys [name name-re] :as cfg}]
+  (let [dsc (distribution-statistics-config cfg)]
+    (reify MeterFilter
+      (^DistributionStatisticConfig configure [_ ^Meter$Id id ^DistributionStatisticConfig cfg]
+        (if (or (= name (.getName id)) (and name-re (re-matches name-re (.getName id)))) dsc cfg)))))
+
+(defn- make-filter [cfg]
+  (let [mode (key (first cfg)), ffn (val (first cfg))]
     (case mode
       :deny-unless (MeterFilter/denyUnless (to-predicate ffn))
       :accept (MeterFilter/accept (to-predicate ffn))
       :deny (MeterFilter/deny (to-predicate ffn))
       :raw-map (reify MeterFilter  (^Meter$Id map [_ ^Meter$Id id] (ffn id)))
       :raw-accept (reify MeterFilter (^MeterFilterReply accept [_ ^Meter$Id id]  (ffn id)))
+      :dist-stats (dist-stats-filter cfg)
       (throw (ex-info "unknown filter mode" {:mode mode})))))
 
 (defn- setup-rename-tags [metrics rename-tags]

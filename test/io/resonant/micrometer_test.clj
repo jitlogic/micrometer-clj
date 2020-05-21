@@ -95,15 +95,15 @@
     (is (> (count (get-in qm1 [:availableTags "id"])) (count (get-in qm2 [:availableTags "id"]))))))
 
 (deftest test-metrics-apply-filters
-  (let [cfg {:type :simple
+  (let [dsc {:histogram? true, :percentiles [50,90,95,99], :precision 2, :sla [90,95],
+             :min-val 1, :max-val 100, :expiry 60000, :buf-len 100, :name "foo.bar", :name-re #"jvm.*"}
+        cfg {:type :simple
              :rename-tags [{:prefix "jvm", :from "foo", :to "bar"}]
              :ignore-tags ["foo" "bar"]
              :replace-tags [{:from "foo", :to clojure.string/upper-case, :except ["baz" "bag"]}]
-             :meter-filters [{:accept (partial re-matches #"^foo")}
-                             {:deny (constantly true)}
-                             {:deny-unless false},
-                             {:raw-map identity}
-                             {:raw-accept identity}]
+             :meter-filters [{:accept (partial re-matches #"^foo")}, {:deny (constantly true)},
+                             {:deny-unless false}, {:dist-stats dsc},
+                             {:raw-map identity}, {:raw-accept identity}]
              :max-metrics 100,
              :tag-limits [{:prefix "jvm", :tag "foo", :max-vals 10, :on-limit {:deny true}}]
              :val-limits [{:prefix "jvm", :min 0, :max 10}]}]
