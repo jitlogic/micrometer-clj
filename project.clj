@@ -21,5 +21,6 @@
    [io.micrometer/micrometer-registry-datadog "1.5.1" :scope "provided"]
    [io.micrometer/micrometer-registry-stackdriver "1.5.1" :scope "provided"]
    [io.micrometer/micrometer-registry-ganglia "1.5.1" :scope "provided"]
-   [io.micrometer/micrometer-registry-dynatrace "1.5.1" :scope "provided"]]
+   [io.micrometer/micrometer-registry-dynatrace "1.5.1" :scope "provided"]
+   [io.micrometer/micrometer-registry-wavefront "1.5.1" :scope "provided"]]
   :repl-options {:init-ns io.resonant.micrometer})
