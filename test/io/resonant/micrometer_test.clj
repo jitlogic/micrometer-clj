@@ -31,29 +31,24 @@
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
+(defmacro ccr [clazz type & {:as args}]
+  `(with-open [registry# (:registry (m/metrics (merge {:type ~type, :jvm-metrics [], :os-metrics [], :enabled? false} ~args)))]
+     (is (instance? ~clazz registry#))))
+
 (deftest test-create-registry
   (testing "Meter registries creation multimethod"
     (is (instance? SimpleMeterRegistry (:registry (m/metrics SIMPLE))))
     (is (instance? CompositeMeterRegistry (:registry (m/metrics {:type :composite, :configs {:test1 SIMPLE :test2 SIMPLE}}))))
     (is (instance? PrometheusMeterRegistry (:registry (m/metrics {:type :prometheus :jvm-metrics [], :os-metrics []}))))
-    (with-open [registry (:registry (m/metrics {:type :elastic, :jvm-metrics [], :os-metrics [], :enabled? false}))]
-      (is (instance? ElasticMeterRegistry registry)))
-    (with-open [registry (:registry (m/metrics {:type :opentsdb, :jvm-metrics [], :os-metrics [], :enabled? false}))]
-      (is (instance? OpenTSDBMeterRegistry registry)))
-    (with-open [registry (:registry (m/metrics {:type :graphite, :jvm-metrics [], :os-metrics [], :enabled? false}))]
-      (is (instance? GraphiteMeterRegistry registry)))
-    (with-open [registry (:registry (m/metrics {:type :influx, :jvm-metrics [], :os-metrics [], :enabled? false}))]
-      (is (instance? InfluxMeterRegistry registry)))
-    (with-open [registry (:registry (m/metrics {:type :jmx, :jvm-metrics [], :os-metrics []}))]
-      (is (instance? JmxMeterRegistry registry)))
-    (with-open [registry (:registry (m/metrics {:type :azure, :jvm-metrics [], :os-metrics [], :enabled? false}))]
-      (is (instance? AzureMonitorMeterRegistry registry)))
-    (with-open [registry (:registry (m/metrics {:type :atlas, :jvm-metrics [], :os-metrics [], :enabled? false}))]
-      (is (instance? AtlasMeterRegistry registry)))
-    (with-open [registry (:registry (m/metrics {:type :statsd, :jvm-metrics [], :os-metrics [], :enabled? false}))]
-      (is (instance? StatsdMeterRegistry registry)))
-    (with-open [registry (:registry (m/metrics {:type :newrelic, :jvm-metrics [], :os-metrics [], :enabled? false, :api-key "x", :account-id "x"}))]
-      (is (instance? NewRelicMeterRegistry registry)))))
+    (ccr ElasticMeterRegistry :elastic)
+    (ccr OpenTSDBMeterRegistry :opentsdb)
+    (ccr GraphiteMeterRegistry :graphite)
+    (ccr InfluxMeterRegistry :influx)
+    (ccr JmxMeterRegistry :jmx)
+    (ccr AzureMonitorMeterRegistry :azure)
+    (ccr AtlasMeterRegistry :atlas)
+    (ccr StatsdMeterRegistry :statsd)
+    (ccr NewRelicMeterRegistry :newrelic :api-key "x", :account-id "x")))
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."
