@@ -18,6 +18,7 @@
     io.resonant.micrometer.dynatrace
     io.resonant.micrometer.wavefront
     io.resonant.micrometer.humio
+    io.resonant.micrometer.kairos
     clojure.string)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
@@ -39,7 +40,8 @@
     (io.micrometer.ganglia GangliaMeterRegistry)
     (io.micrometer.dynatrace DynatraceMeterRegistry)
     (io.micrometer.wavefront WavefrontMeterRegistry)
-    (io.micrometer.humio HumioMeterRegistry)))
+    (io.micrometer.humio HumioMeterRegistry)
+    (io.micrometer.kairos KairosMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -66,7 +68,8 @@
     (ccr GangliaMeterRegistry :ganglia)
     (ccr DynatraceMeterRegistry :dynatrace :api-token "x" :url "http://localhost" :device-id "1")
     (ccr WavefrontMeterRegistry :wavefront :api-token "x")
-    (ccr HumioMeterRegistry :humio :api-token "x")))
+    (ccr HumioMeterRegistry :humio :api-token "x")
+    (ccr KairosMeterRegistry :kairos)))
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."
