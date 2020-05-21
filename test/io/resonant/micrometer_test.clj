@@ -20,7 +20,6 @@
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
-
 (deftest test-create-registry
   (testing "Meter registries creation multimethod"
     (is (instance? SimpleMeterRegistry (:registry (m/metrics SIMPLE))))
@@ -34,7 +33,6 @@
       (is (instance? GraphiteMeterRegistry registry)))
     (with-open [registry (:registry (m/metrics {:type :influx, :jvm-metrics [], :os-metrics [], :enabled? false}))]
       (is (instance? InfluxMeterRegistry registry)))))
-
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."
@@ -56,7 +54,6 @@
       (is (= 2 (.count timer)))
       (is (= 2 @tcnt)))))
 
-
 (deftest test-counter-metrics
   (testing "Counter metrics registration and usage"
     (let [metrics (m/metrics SIMPLE),
@@ -70,7 +67,6 @@
       (m/inc-counter nil "test" {:foo "bar"})
       (is (= 2.0 (.count counter))))))
 
-
 (deftest test-gauge-metrics
   (testing "Gauge metrics registration and usage"
     (let [data (atom [1 2 3]), metrics (m/metrics SIMPLE),
@@ -80,7 +76,6 @@
       (is (= 3.0 (.value gauge)))
       (swap! data conj 4)
       (is (= 4.0 (.value gauge))))))
-
 
 (deftest test-jvm-os-metrics
   (testing "Register standard JVM and OS metrics"

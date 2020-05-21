@@ -8,37 +8,30 @@
     (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
     (io.micrometer.core.instrument.config MeterFilter)))
 
-
 (defn to-string [v]
   (cond
     (keyword? v) (name v)
     (string? v) v
     :else (str v)))
 
-
 (defn- to-function [v-or-fn]
   (if (fn? v-or-fn)
     (reify Function (apply [_ v] (v-or-fn v)))
     (reify Function (apply [_ v] v))))
-
 
 (defn- to-predicate [v-or-fn]
   (if (fn? v-or-fn)
     (reify Predicate (test [_ v] (true? (v-or-fn v))))
     (reify Predicate (test [_ v] (true? v)))))
 
-
 (defn ^Iterable to-tags [tags]
   (for [[k v] tags] (Tag/of (to-string k) (to-string v))))
 
-
 (defmulti create-registry "Returns raw meter registry object from micrometer library." :type)
-
 
 (defmethod create-registry :simple [config]
   {:config config, :type :simple,
    :registry (SimpleMeterRegistry.)})
-
 
 (defmethod create-registry :composite [{:keys [configs] :as config}]
   (let [components (into {} (for [[k v] configs] {k (create-registry v)}))]
@@ -46,13 +39,10 @@
     {:config   config, :components components, :type :composite,
      :registry (CompositeMeterRegistry. Clock/SYSTEM (map :registry (vals components)))}))
 
-
 (defmethod create-registry :default [cfg]
   (throw (ex-info "Invalid metrics registry type" {:cfg cfg})))
 
-
 (def DEFAULT-JVM-METRICS [:classes :memory :gc :threads :jit :heap])
-
 
 (defn setup-jvm-metrics [{:keys [registry] :as metrics} jvm-metrics]
   (doseq [metric jvm-metrics]
@@ -65,9 +55,7 @@
       :heap (.bindTo (JvmHeapPressureMetrics.) registry)
       (throw (ex-info "Illegal JVM metric" {:metric metric, :allowed DEFAULT-JVM-METRICS})))))
 
-
 (def DEFAULT-OS-METRICS [:files :cpu :uptime])
-
 
 (defn setup-os-metrics [{:keys [registry]} os-metrics]
   (doseq [metric os-metrics]
@@ -115,7 +103,6 @@
     (let [cfg (.config registry)]
       (.commonTags cfg (to-tags tags)))))
 
-
 (defn metrics [{:keys [rename-tags ignore-tags replace-tags meter-filters] :as cfg}]
   (doto
     (assoc
@@ -130,39 +117,31 @@
     (setup-filters meter-filters)
     (setup-limits (select-keys cfg [:max-metrics :tag-limits]))))
 
-
 (defn close [{:keys [^MeterRegistry registry]}]
   (when registry
     (.close registry)))
 
-
 (defmulti scrape "Returns data as registry-specific data or nil when given registry type cannot be scraped" :type)
 
-
 (defmethod scrape :default [_] nil)
-
 
 (defn list-meters [{:keys [^MeterRegistry registry]}]
   (let [names (into #{} (for [^Meter meter (.getMeters registry)] (.getName (.getId meter))))]
     {:names (into [] names)}))
-
 
 (defn- merge-stats [stats1 stats2]
   (if (= 1 (count stats1))
     [[(-> stats1 first first) (+ (-> stats1 first second) (-> stats2 first second))]]
     (for [[[ss1 sv1] [_ sv2]] (map vector stats1 stats2)] [ss1 (+ sv1 sv2)])))
 
-
 (defn- acc-tags [acc [tagk tagv]]
   (assoc acc tagk (conj (get acc tagk #{}) tagv)))
-
 
 (defn- match-meter [name tagk tagv m]
   (let [^Meter$Id id (.getId m)]
     (and
       (= name (.getName id))
       (or (nil? tagk) (first (for [^Tag t (.getTagsAsIterable id) :when (and (= tagk (.getKey t)) (= tagv (.getValue t)))] true))))))
-
 
 (defn query-meters [{:keys [^MeterRegistry registry]} name & [tagk tagv]]
   (let [meters (for [^Meter m (.getMeters registry) :when (match-meter name tagk tagv m)] m)]
@@ -177,7 +156,6 @@
           (when mdesc {:description mdesc})
           (when munit {:baseUnit munit}))))))
 
-
 (defn get-timer [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
   (when metrics
     (let [timer (get-in @metrics [name tags])]
@@ -189,16 +167,13 @@
           (swap! metrics assoc-in [name tags] timer)
           timer)))))
 
-
 (defmacro with-timer [^Timer timer & body]
   `(let [f# (fn [] ~@body)]
      (if ~timer (.record ^Timer ~timer f#) (f#))))
 
-
 (defmacro timed [metrics name tags & body]
   `(let [timer# (get-timer ~metrics ~name ~tags), f# (fn [] ~@body)]
      (if timer# (.record ^Timer timer# ^Runnable f#) (f#))))
-
 
 (defn get-counter [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
   (when metrics
@@ -211,7 +186,6 @@
           (swap! metrics assoc-in [name tags] counter)
           counter)))))
 
-
 (defn inc-counter
   ([^Counter counter]
    (when counter (.increment counter)))
@@ -222,7 +196,6 @@
   ([metrics name tags n]
    (let [counter (get-counter metrics name tags)]
      (when counter (.increment counter n)))))
-
 
 (defn get-gauge [{:keys [metrics ^MeterRegistry registry] :as m} name tags gfn]
   (when metrics
@@ -235,7 +208,6 @@
               gauge (.register (.tags (Gauge/builder name supplier) (to-tags tags)) registry)]
           (swap! metrics assoc-in [name tags] gauge)
           gauge)))))
-
 
 (defmacro defgauge [metrics name tags & body]
   `(when ~metrics (get-gauge ~metrics ~name ~tags (fn [] ~@body))))
