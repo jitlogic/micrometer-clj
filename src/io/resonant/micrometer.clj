@@ -1,11 +1,12 @@
 (ns io.resonant.micrometer
   (:import
-    (java.util.function Supplier)
+    (java.util.function Supplier Function Predicate)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
-    (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)))
+    (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
+    (io.micrometer.core.instrument.config MeterFilter)))
 
 
 (defn to-string [v]
@@ -13,6 +14,18 @@
     (keyword? v) (name v)
     (string? v) v
     :else (str v)))
+
+
+(defn- to-function [v-or-fn]
+  (if (fn? v-or-fn)
+    (reify Function (apply [_ v] (v-or-fn v)))
+    (reify Function (apply [_ v] v))))
+
+
+(defn- to-predicate [v-or-fn]
+  (if (fn? v-or-fn)
+    (reify Predicate (test [_ v] (true? (v-or-fn v))))
+    (reify Predicate (test [_ v] (true? v)))))
 
 
 (defn ^Iterable to-tags [tags]
@@ -64,6 +77,38 @@
       :uptime (.bindTo (UptimeMetrics.) registry)
       (throw (ex-info "Illegal OS metric" {:metric metric, :allowed DEFAULT-OS-METRICS})))))
 
+(defn- meter-filter [{:keys [registry]} mf]
+  (.meterFilter (.config registry) mf))
+
+(defn- make-filter [f]
+  (let [mode (key (first f)), ffn (val (first f)), p (to-predicate ffn)]
+    (case mode
+      :deny-unless (MeterFilter/denyUnless p)
+      :accept (MeterFilter/accept p)
+      :deny (MeterFilter/deny p)
+      (throw (ex-info "unknown filter mode" {:mode mode})))))
+
+(defn- setup-rename-tags [metrics rename-tags]
+  (doseq [{:keys [prefix from to]} rename-tags]
+    (meter-filter metrics (MeterFilter/renameTag prefix from to))))
+
+(defn- setup-ignore-tags [metrics ignore-tags]
+  (when ignore-tags (meter-filter metrics (MeterFilter/ignoreTags (into-array String ignore-tags)))))
+
+(defn- setup-replace-tags [metrics replace-tags]
+  (doseq [{:keys [from to except]} replace-tags]
+    (meter-filter metrics (MeterFilter/replaceTagValues from (to-function to) (into-array String except)))))
+
+(defn- setup-filters [metrics filters]
+  (doseq [f filters] (meter-filter metrics (make-filter f))))
+
+(defn- setup-limits [metrics {:keys [max-metrics tag-limits val-limits]}]
+  (when max-metrics (meter-filter metrics (MeterFilter/maximumAllowableMetrics max-metrics)))
+  (doseq [{:keys [prefix tag max-vals on-limit]} tag-limits]
+    (meter-filter metrics (MeterFilter/maximumAllowableTags prefix tag max-vals (make-filter on-limit))))
+  (doseq [{:keys [prefix max min]} val-limits]
+    (when max (meter-filter metrics (MeterFilter/maxExpected ^String prefix (double max))))
+    (when min (meter-filter metrics (MeterFilter/minExpected ^String prefix (double min))))))
 
 (defn setup-common-tags [{:keys [registry]} tags]
   (when-not (empty? tags)
@@ -71,14 +116,19 @@
       (.commonTags cfg (to-tags tags)))))
 
 
-(defn metrics [cfg]
+(defn metrics [{:keys [rename-tags ignore-tags replace-tags meter-filters] :as cfg}]
   (doto
     (assoc
       (create-registry cfg)
       :metrics (atom {}))
     (setup-common-tags (:tags cfg {}))
     (setup-os-metrics (:os-metrics cfg DEFAULT-OS-METRICS))
-    (setup-jvm-metrics (:jvm-metrics cfg DEFAULT-JVM-METRICS))))
+    (setup-jvm-metrics (:jvm-metrics cfg DEFAULT-JVM-METRICS))
+    (setup-rename-tags rename-tags)
+    (setup-ignore-tags ignore-tags)
+    (setup-replace-tags replace-tags)
+    (setup-filters meter-filters)
+    (setup-limits (select-keys cfg [:max-metrics :tag-limits]))))
 
 
 (defn close [{:keys [^MeterRegistry registry]}]

@@ -6,7 +6,8 @@
     io.resonant.micrometer.elastic
     io.resonant.micrometer.opentsdb
     io.resonant.micrometer.graphite
-    io.resonant.micrometer.influx)
+    io.resonant.micrometer.influx
+    clojure.string)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
@@ -96,5 +97,16 @@
     (is (number? (-> qm1 :measurements first :value)))
     (is (vector? (get-in qm1 [:availableTags "id"])))
     (is (vector? (get-in qm2 [:availableTags "id"])))
-    (is (> (count (get-in qm1 [:availableTags "id"])) (count (get-in qm2 [:availableTags "id"]))))
-    ))
+    (is (> (count (get-in qm1 [:availableTags "id"])) (count (get-in qm2 [:availableTags "id"]))))))
+
+(deftest test-metrics-apply-filters
+  (let [cfg {:type :simple
+             :rename-tags [{:prefix "jvm", :from "foo", :to "bar"}]
+             :ignore-tags ["foo" "bar"]
+             :replace-tags [{:from "foo", :to clojure.string/upper-case, :except ["baz" "bag"]}]
+             :meter-filters [{:accept (partial re-matches #"^foo")} {:deny (constantly true)} {:deny-unless false}]
+             :max-metrics 100,
+             :tag-limits [{:prefix "jvm", :tag "foo", :max-vals 10, :on-limit {:deny true}}]
+             :val-limits [{:prefix "jvm", :min 0, :max 10}]
+             }]
+    (is (some? (:registry (m/metrics cfg))))))
