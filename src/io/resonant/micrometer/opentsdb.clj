@@ -19,7 +19,7 @@
        (password [_] (:password cfg))
        PushRegistryConfig
        (step [_] (Duration/ofMillis (:step cfg 60000)))
-       (enabled [_] (:enabled cfg true))
+       (enabled [_] (:enabled? cfg true))
        (numThreads [_] (:num-threads cfg 2))
        (connectTimeout [_] (Duration/ofMillis (:connect-timeout cfg 1000)))
        (readTimeout [_] (Duration/ofMillis (:read-timeout cfg 10000)))

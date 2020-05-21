@@ -25,18 +25,14 @@
     (is (instance? SimpleMeterRegistry (:registry (m/metrics SIMPLE))))
     (is (instance? CompositeMeterRegistry (:registry (m/metrics {:type :composite, :configs {:test1 SIMPLE :test2 SIMPLE}}))))
     (is (instance? PrometheusMeterRegistry (:registry (m/metrics {:type :prometheus :jvm-metrics [], :os-metrics []}))))
-    (let [registry (:registry (m/metrics {:type :elastic, :jvm-metrics [], :os-metrics [], :enabled false}))]
-      (is (instance? ElasticMeterRegistry registry))
-      (.close registry))
-    (let [registry (:registry (m/metrics {:type :opentsdb, :jvm-metrics [], :os-metrics [], :enabled false}))]
-      (is (instance? OpenTSDBMeterRegistry registry))
-      (.close registry))
-    (let [registry (:registry (m/metrics {:type :graphite, :jvm-metrics [], :os-metrics [], :enabled false}))]
-      (is (instance? GraphiteMeterRegistry registry))
-      (.close registry))
-    (let [registry (:registry (m/metrics {:type :influx, :jvm-metrics [], :os-metrics [], :enabled false}))]
-      (is (instance? InfluxMeterRegistry registry))
-      (.close registry))))
+    (with-open [registry (:registry (m/metrics {:type :elastic, :jvm-metrics [], :os-metrics [], :enabled? false}))]
+      (is (instance? ElasticMeterRegistry registry)))
+    (with-open [registry (:registry (m/metrics {:type :opentsdb, :jvm-metrics [], :os-metrics [], :enabled? false}))]
+      (is (instance? OpenTSDBMeterRegistry registry)))
+    (with-open [registry (:registry (m/metrics {:type :graphite, :jvm-metrics [], :os-metrics [], :enabled? false}))]
+      (is (instance? GraphiteMeterRegistry registry)))
+    (with-open [registry (:registry (m/metrics {:type :influx, :jvm-metrics [], :os-metrics [], :enabled? false}))]
+      (is (instance? InfluxMeterRegistry registry)))))
 
 
 (deftest test-timer-metrics

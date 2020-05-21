@@ -15,13 +15,13 @@
      (reify
        GraphiteConfig
        (get [_ _] nil)
-       (graphiteTagsEnabled [_] (:graphite-tags-enabled cfg true))
+       (graphiteTagsEnabled [_] (:graphite-tags-enabled? cfg true))
        (tagsAsPrefix [_] (into-array String (:tags-as-prefix cfg [])))
        (rateUnits [_] (TimeUnit/valueOf (.toUpperCase (name (:rate-units cfg :seconds)))))
        (durationUnits [_] (TimeUnit/valueOf (.toUpperCase (name (:duration-units cfg :milliseconds)))))
        (host [_] (:host cfg "localhost"))
        (port [_] (:port cfg 2004))
-       (enabled [_] (:enabled cfg true))
+       (enabled [_] (:enabled? cfg true))
        (protocol [_] (GraphiteProtocol/valueOf (.toUpperCase (name (:protocol cfg :PICKLED)))))
        DropwizardConfig
        (step [_] (Duration/ofMillis (:step cfg 60000))))
