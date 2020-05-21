@@ -32,13 +32,14 @@
 (defmulti create-registry "Returns raw meter registry object from micrometer library." :type)
 
 (defmethod create-registry :simple [config]
-  {:config config, :type :simple,
+  {:config config,
+   :type (:type config),
    :registry (SimpleMeterRegistry.)})
 
 (defmethod create-registry :composite [{:keys [configs] :as config}]
   (let [components (into {} (for [[k v] configs] {k (create-registry v)}))]
     (when (= 0 (count components)) (throw (ex-info "Cannot create empty composite registry" {:config config})))
-    {:config   config, :components components, :type :composite,
+    {:config   config, :components components, :type (:type config),
      :registry (CompositeMeterRegistry. Clock/SYSTEM (map :registry (vals components)))}))
 
 (defmethod create-registry :default [cfg]

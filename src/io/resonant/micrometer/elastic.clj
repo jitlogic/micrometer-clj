@@ -8,7 +8,7 @@
 
 (defmethod create-registry :elastic [cfg]
   {:config cfg,
-   :type :elastic,
+   :type (:type cfg),
    :registry
    (ElasticMeterRegistry.
      (reify

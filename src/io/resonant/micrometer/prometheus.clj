@@ -8,7 +8,7 @@
 
 (defmethod create-registry :prometheus [cfg]
   {:config cfg,
-   :type :prometheus,
+   :type (:type cfg),
    :registry
    (PrometheusMeterRegistry.
      (reify PrometheusConfig

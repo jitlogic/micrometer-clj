@@ -9,7 +9,7 @@
 
 (defmethod create-registry :graphite [cfg]
   {:config cfg,
-   :type :elastic,
+   :type (:type cfg),
    :registry
    (GraphiteMeterRegistry.
      (reify

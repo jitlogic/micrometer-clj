@@ -8,7 +8,7 @@
 
 (defmethod create-registry :opentsdb [cfg]
   {:config cfg,
-   :type :elastic,
+   :type (:type cfg),
    :registry
    (OpenTSDBMeterRegistry.
      (reify

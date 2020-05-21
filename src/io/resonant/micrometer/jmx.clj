@@ -9,7 +9,7 @@
 
 (defmethod create-registry :jmx [cfg]
   {:config cfg,
-   :type :elastic,
+   :type (:type cfg),
    :registry
    (JmxMeterRegistry.
      (reify

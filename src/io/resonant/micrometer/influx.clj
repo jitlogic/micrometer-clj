@@ -8,7 +8,7 @@
 
 (defmethod create-registry :influx [cfg]
   {:config cfg,
-   :type :elastic,
+   :type (:type cfg),
    :registry
    (InfluxMeterRegistry.
      (reify

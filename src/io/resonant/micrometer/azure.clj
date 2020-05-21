@@ -9,7 +9,7 @@
 
 (defmethod create-registry :azure [cfg]
   {:config cfg,
-   :type :elastic,
+   :type (:type cfg),
    :registry
    (AzureMonitorMeterRegistry.
      (reify
