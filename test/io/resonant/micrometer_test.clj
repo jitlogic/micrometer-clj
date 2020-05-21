@@ -13,7 +13,7 @@
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.prometheus PrometheusMeterRegistry)
-    (io.micrometer.core.instrument Timer Counter MeterRegistry LongTaskTimer)
+    (io.micrometer.core.instrument Timer Counter MeterRegistry LongTaskTimer FunctionCounter)
     (io.micrometer.elastic ElasticMeterRegistry)
     (io.micrometer.opentsdb OpenTSDBMeterRegistry)
     (io.micrometer.graphite GraphiteMeterRegistry)
@@ -92,6 +92,14 @@
       (is (= 2.0 (.count counter)))
       (m/inc-counter nil "test" {:foo "bar"})
       (is (= 2.0 (.count counter))))))
+
+(deftest test-tracking-counter
+  (testing "Tracking metrics registration and usage"
+    (let [metrics (m/metrics SIMPLE), obj (atom 42)
+          ^FunctionCounter counter (m/function-counter metrics "test" {:foo "bar"} obj deref)]
+      (is (= 42.0 (.count counter)))
+      (reset! obj 44)
+      (is (= 44.0 (.count counter))))))
 
 (deftest test-gauge-metrics
   (testing "Gauge metrics registration and usage"

@@ -1,9 +1,9 @@
 (ns io.resonant.micrometer
   (:import
-    (java.util.function Supplier Function Predicate)
+    (java.util.function Supplier Function Predicate ToDoubleFunction)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
-    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id LongTaskTimer)
+    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id LongTaskTimer FunctionCounter)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
     (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
     (io.micrometer.core.instrument.config MeterFilter MeterFilterReply)
@@ -237,6 +237,18 @@
   ([metrics name tags n]
    (let [counter (get-counter metrics name tags)]
      (when counter (.increment counter n)))))
+
+(defn function-counter [{:keys [registry metrics]} name tags obj cfn]
+  (when metrics
+    (let [counter (get-in @metrics [name tags])]
+      (cond
+        (instance? FunctionCounter counter) counter
+        (some? counter) (throw (ex-info "Metric already registered and is not function counter" {:name name, :tags tags, :metric counter}))
+        :else
+        (let [cntfn (reify ToDoubleFunction (applyAsDouble [_ v] (double (cfn v))))
+              counter (.counter (.more registry) name (to-tags tags) obj cntfn)]
+          (swap! metrics assoc-in [name tags] counter)
+          counter)))))
 
 (defn get-gauge [{:keys [metrics ^MeterRegistry registry] :as m} name tags gfn]
   (when metrics
