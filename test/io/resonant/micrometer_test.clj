@@ -5,7 +5,8 @@
     io.resonant.micrometer.prometheus
     io.resonant.micrometer.elastic
     io.resonant.micrometer.opentsdb
-    io.resonant.micrometer.graphite)
+    io.resonant.micrometer.graphite
+    io.resonant.micrometer.influx)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
@@ -13,7 +14,8 @@
     (io.micrometer.core.instrument Timer Counter MeterRegistry)
     (io.micrometer.elastic ElasticMeterRegistry)
     (io.micrometer.opentsdb OpenTSDBMeterRegistry)
-    (io.micrometer.graphite GraphiteMeterRegistry)))
+    (io.micrometer.graphite GraphiteMeterRegistry)
+    (io.micrometer.influx InfluxMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -31,6 +33,9 @@
       (.close registry))
     (let [registry (:registry (m/metrics {:type :graphite, :jvm-metrics [], :os-metrics [], :enabled false}))]
       (is (instance? GraphiteMeterRegistry registry))
+      (.close registry))
+    (let [registry (:registry (m/metrics {:type :influx, :jvm-metrics [], :os-metrics [], :enabled false}))]
+      (is (instance? InfluxMeterRegistry registry))
       (.close registry))))
 
 
