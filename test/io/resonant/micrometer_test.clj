@@ -11,6 +11,7 @@
     io.resonant.micrometer.azure
     io.resonant.micrometer.atlas
     io.resonant.micrometer.statsd
+    io.resonant.micrometer.newrelic
     clojure.string)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
@@ -25,7 +26,8 @@
     (io.micrometer.jmx JmxMeterRegistry)
     (io.micrometer.azuremonitor AzureMonitorMeterRegistry)
     (io.micrometer.atlas AtlasMeterRegistry)
-    (io.micrometer.statsd StatsdMeterRegistry)))
+    (io.micrometer.statsd StatsdMeterRegistry)
+    (io.micrometer.newrelic NewRelicMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -49,7 +51,9 @@
     (with-open [registry (:registry (m/metrics {:type :atlas, :jvm-metrics [], :os-metrics [], :enabled? false}))]
       (is (instance? AtlasMeterRegistry registry)))
     (with-open [registry (:registry (m/metrics {:type :statsd, :jvm-metrics [], :os-metrics [], :enabled? false}))]
-      (is (instance? StatsdMeterRegistry registry)))))
+      (is (instance? StatsdMeterRegistry registry)))
+    (with-open [registry (:registry (m/metrics {:type :newrelic, :jvm-metrics [], :os-metrics [], :enabled? false, :api-key "x", :account-id "x"}))]
+      (is (instance? NewRelicMeterRegistry registry)))))
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."
