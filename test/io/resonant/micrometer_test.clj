@@ -10,6 +10,7 @@
     io.resonant.micrometer.jmx
     io.resonant.micrometer.azure
     io.resonant.micrometer.atlas
+    io.resonant.micrometer.statsd
     clojure.string)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
@@ -23,7 +24,8 @@
     (java.util.concurrent TimeUnit)
     (io.micrometer.jmx JmxMeterRegistry)
     (io.micrometer.azuremonitor AzureMonitorMeterRegistry)
-    (io.micrometer.atlas AtlasMeterRegistry)))
+    (io.micrometer.atlas AtlasMeterRegistry)
+    (io.micrometer.statsd StatsdMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -46,7 +48,8 @@
       (is (instance? AzureMonitorMeterRegistry registry)))
     (with-open [registry (:registry (m/metrics {:type :atlas, :jvm-metrics [], :os-metrics [], :enabled? false}))]
       (is (instance? AtlasMeterRegistry registry)))
-    ))
+    (with-open [registry (:registry (m/metrics {:type :statsd, :jvm-metrics [], :os-metrics [], :enabled? false}))]
+      (is (instance? StatsdMeterRegistry registry)))))
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."
