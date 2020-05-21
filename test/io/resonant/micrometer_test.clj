@@ -7,6 +7,7 @@
     io.resonant.micrometer.opentsdb
     io.resonant.micrometer.graphite
     io.resonant.micrometer.influx
+    io.resonant.micrometer.jmx
     clojure.string)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
@@ -17,7 +18,8 @@
     (io.micrometer.opentsdb OpenTSDBMeterRegistry)
     (io.micrometer.graphite GraphiteMeterRegistry)
     (io.micrometer.influx InfluxMeterRegistry)
-    (java.util.concurrent TimeUnit)))
+    (java.util.concurrent TimeUnit)
+    (io.micrometer.jmx JmxMeterRegistry)))
 
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
@@ -33,7 +35,9 @@
     (with-open [registry (:registry (m/metrics {:type :graphite, :jvm-metrics [], :os-metrics [], :enabled? false}))]
       (is (instance? GraphiteMeterRegistry registry)))
     (with-open [registry (:registry (m/metrics {:type :influx, :jvm-metrics [], :os-metrics [], :enabled? false}))]
-      (is (instance? InfluxMeterRegistry registry)))))
+      (is (instance? InfluxMeterRegistry registry)))
+    (with-open [registry (:registry (m/metrics {:type :jmx, :jvm-metrics [], :os-metrics []}))]
+      (is (instance? JmxMeterRegistry registry)))))
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."
