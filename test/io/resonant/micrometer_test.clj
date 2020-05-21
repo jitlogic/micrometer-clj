@@ -150,7 +150,7 @@
              :rename-tags [{:prefix "jvm", :from "foo", :to "bar"}]
              :ignore-tags ["foo" "bar"]
              :replace-tags [{:from "foo", :to clojure.string/upper-case, :except ["baz" "bag"]}]
-             :meter-filters [{:accept (partial re-matches #"^foo")}, {:deny (constantly true)},
+             :meter-filters [{:accept #(re-matches #"^foo" (.getName %))}, {:deny (constantly true)},
                              {:deny-unless false}, {:dist-stats dsc},
                              {:raw-map identity}, {:raw-accept identity}]
              :max-metrics 100,

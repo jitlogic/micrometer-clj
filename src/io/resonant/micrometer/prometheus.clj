@@ -7,14 +7,11 @@
 
 
 (defmethod create-registry :prometheus [cfg]
-  {:config cfg,
-   :type (:type cfg),
-   :registry
-   (PrometheusMeterRegistry.
-     (reify PrometheusConfig
-       (get [_ k] nil)
-       (prefix [_] (:prefix cfg "resonant.metrics"))
-       (step [_#] (Duration/ofMillis (:step cfg 60000)))))})
+  (PrometheusMeterRegistry.
+    (reify PrometheusConfig
+      (get [_ k] nil)
+      (prefix [_] (:prefix cfg "resonant.metrics"))
+      (step [_#] (Duration/ofMillis (:step cfg 60000))))))
 
 
 (defmethod scrape :prometheus [{:keys [^PrometheusMeterRegistry registry]}]

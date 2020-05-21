@@ -8,14 +8,11 @@
     (io.micrometer.core.instrument Clock)))
 
 (defmethod create-registry :jmx [cfg]
-  {:config cfg,
-   :type (:type cfg),
-   :registry
-   (JmxMeterRegistry.
-     (reify
-       JmxConfig
-       (get [_ _] nil)
-       (domain [_] (:domain cfg))
-       DropwizardConfig
-       (step [_] (Duration/ofMillis (:step cfg 60000))))
-     (Clock/SYSTEM))})
+  (JmxMeterRegistry.
+    (reify
+      JmxConfig
+      (get [_ _] nil)
+      (domain [_] (:domain cfg))
+      DropwizardConfig
+      (step [_] (Duration/ofMillis (:step cfg 60000))))
+    (Clock/SYSTEM)))

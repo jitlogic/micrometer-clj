@@ -29,17 +29,18 @@
 (defn ^Iterable to-tags [tags]
   (for [[k v] tags] (Tag/of (to-string k) (to-string v))))
 
+(defn- reg-to-map [v]
+  (if (map? v) v {:registry v}))
+
 (defmulti create-registry "Returns raw meter registry object from micrometer library." :type)
 
-(defmethod create-registry :simple [config]
-  {:config config,
-   :type (:type config),
-   :registry (SimpleMeterRegistry.)})
+(defmethod create-registry :simple [_]
+  (SimpleMeterRegistry.))
 
 (defmethod create-registry :composite [{:keys [configs] :as config}]
-  (let [components (into {} (for [[k v] configs] {k (create-registry v)}))]
+  (let [components (into {} (for [[k v] configs] {k (assoc (reg-to-map (create-registry v)) :type (:type v), :config v)}))]
     (when (= 0 (count components)) (throw (ex-info "Cannot create empty composite registry" {:config config})))
-    {:config   config, :components components, :type (:type config),
+    {:components components,
      :registry (CompositeMeterRegistry. Clock/SYSTEM (map :registry (vals components)))}))
 
 (defmethod create-registry :default [cfg]
@@ -129,7 +130,9 @@
 (defn metrics [{:keys [rename-tags ignore-tags replace-tags meter-filters] :as cfg}]
   (doto
     (assoc
-      (create-registry cfg)
+      (reg-to-map (create-registry cfg))
+      :config cfg,
+      :type (:type cfg),
       :metrics (atom {}))
     (setup-common-tags (:tags cfg {}))
     (setup-os-metrics (:os-metrics cfg DEFAULT-OS-METRICS))
