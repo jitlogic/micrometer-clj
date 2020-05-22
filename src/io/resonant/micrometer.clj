@@ -1,14 +1,15 @@
 (ns io.resonant.micrometer
   (:import
-    (java.util.function Supplier Function Predicate ToDoubleFunction)
+    (java.util.function Supplier Function Predicate ToDoubleFunction ToLongFunction)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
-    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id LongTaskTimer FunctionCounter DistributionSummary Tags LongTaskTimer$Builder)
+    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id LongTaskTimer FunctionCounter DistributionSummary Tags LongTaskTimer$Builder FunctionTimer)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
     (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
     (io.micrometer.core.instrument.config MeterFilter MeterFilterReply)
     (io.micrometer.core.instrument.distribution DistributionStatisticConfig)
-    (java.time Duration)))
+    (java.time Duration)
+    (java.util.concurrent TimeUnit)))
 
 (defn to-string [v]
   (cond
@@ -286,6 +287,28 @@
 (defmacro task-timed [metrics name tags options & body]
   `(let [timer# (get-task-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
      (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#))))
+
+(defn get-function-timer
+  ([name tags obj cfn tfn time-unit]
+   (get-function-timer *metrics* name tags {} obj cfn tfn time-unit))
+  ([metrics name tags obj cfn tfn time-unit]
+   (get-function-timer metrics name tags {} obj cfn tfn time-unit))
+  ([metrics name tags {:keys [description]} obj cfn tfn time-unit]
+   (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
+     (let [timer (get-in @metrics [name tags])]
+       (cond
+         (instance? FunctionTimer timer) timer
+         (some? timer) (throw (ex-info "Metric already registered and is not function timer" {:name name, :tags tags, :metric timer}))
+         :else
+         (let [cntfn (reify ToLongFunction (applyAsLong [_ obj] (long (cfn obj))))
+               timfn (reify ToDoubleFunction (applyAsDouble [_ obj] (double (tfn obj))))
+               timer (cond->
+                       (FunctionTimer/builder name obj cntfn timfn (TimeUnit/valueOf (.toUpperCase (clojure.core/name time-unit))))
+                       (map? tags) (.tags (to-tags tags))
+                       (string? description) (.description description)
+                       true (.register registry))]
+           (swap! metrics assoc-in [name tags] timer)
+           timer))))))
 
 (defn get-counter
   ([name tags]

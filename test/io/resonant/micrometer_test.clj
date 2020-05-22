@@ -25,7 +25,7 @@
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.prometheus PrometheusMeterRegistry)
-    (io.micrometer.core.instrument Timer Counter MeterRegistry LongTaskTimer FunctionCounter DistributionSummary)
+    (io.micrometer.core.instrument Timer Counter MeterRegistry LongTaskTimer FunctionCounter DistributionSummary FunctionTimer)
     (io.micrometer.elastic ElasticMeterRegistry)
     (io.micrometer.opentsdb OpenTSDBMeterRegistry)
     (io.micrometer.graphite GraphiteMeterRegistry)
@@ -122,6 +122,16 @@
           42))
       (is (= 2 @tcnt))
       )))
+
+(deftest test-function-timer-metrics
+  (testing "Function timer registration and usage"
+    (let [metrics (m/metrics SIMPLE), obj (atom 2),
+          ^FunctionTimer timer (m/get-function-timer metrics "test" {:foo "bar"} {:description "TEST"} obj deref deref :MILLISECONDS)]
+      (is (= 2.0 (.count timer)))
+      (is (= 2.0 (.totalTime timer TimeUnit/MILLISECONDS)))
+      (reset! obj 4)
+      (is (= 4.0 (.count timer)))
+      (is (= 4.0 (.totalTime timer TimeUnit/MILLISECONDS))))))
 
 (deftest test-counter-metrics
   (testing "Counter metrics registration and usage"
