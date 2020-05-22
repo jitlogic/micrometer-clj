@@ -32,6 +32,8 @@
 (defn- reg-to-map [v]
   (if (map? v) v {:registry v}))
 
+(def ^:dynamic *metrics* nil)
+
 (defmulti create-registry "Returns raw meter registry object from micrometer library." :type)
 
 (defmethod create-registry :simple [_]
@@ -182,28 +184,34 @@
           (when mdesc {:description mdesc})
           (when munit {:baseUnit munit}))))))
 
-(defn get-timer [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
-  (when metrics
-    (let [timer (get-in @metrics [name tags])]
-      (cond
-        (instance? Timer timer) timer
-        (some? timer) (throw (ex-info "Metric already registered and is not a timer" {:name name, :tags tags, :metric timer}))
-        :else
-        (let [timer (.timer registry name (to-tags tags))]
-          (swap! metrics assoc-in [name tags] timer)
-          timer)))))
+(defn get-timer
+  ([name tags]
+   (get-timer *metrics* name tags))
+  ([metrics ^String name tags]
+   (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
+     (let [timer (get-in @metrics [name tags])]
+       (cond
+         (instance? Timer timer) timer
+         (some? timer) (throw (ex-info "Metric already registered and is not a timer" {:name name, :tags tags, :metric timer}))
+         :else
+         (let [timer (.timer registry name (to-tags tags))]
+           (swap! metrics assoc-in [name tags] timer)
+           timer))))))
 
 (defmacro with-timer [^Timer timer & body]
   `(let [f# (fn [] ~@body)]
      (if ~timer (.recordCallable ^Timer ~timer f#) (f#))))
 
 (defmacro timed [metrics name tags & body]
-  `(let [timer# (get-timer ~metrics ~name ~tags), f# (fn [] ~@body)]
+  `(let [timer# (get-timer (or ~metrics *metrics*) ~name ~tags), f# (fn [] ~@body)]
      (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#))))
 
 (defn inc-timer
   ([timer duration]
    (when timer
+     (.record ^Timer timer ^Duration duration)))
+  ([name tags duration]
+   (when-let [timer (get-timer *metrics* name tags)]
      (.record ^Timer timer ^Duration duration)))
   ([metrics name tags duration]
    (when-let [timer (get-timer metrics name tags)]
@@ -213,92 +221,111 @@
   ([timer duration]
    (when timer
      (.record ^Timer timer (Duration/ofMillis duration))))
+  ([name tags duration]
+   (when-let [timer (get-timer *metrics* name tags)]
+     (.record ^Timer timer (Duration/ofMillis duration))))
   ([metrics name tags duration]
    (when-let [timer (get-timer metrics name tags)]
      (.record ^Timer timer (Duration/ofMillis duration)))))
 
 (defn get-task-timer
-  [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
-  (let [timer (get-in @metrics [name tags])]
-    (cond
-      (instance? LongTaskTimer timer) timer
-      (some? timer) (throw (ex-info "Metric already registered and is not long task timer" {:name name, :tags tags, :metric timer}))
-      :else
-      (let [timer (.longTaskTimer (.more registry)name (to-tags tags))]
-        (swap! metrics assoc-in [name tags] timer)
-        timer))))
+  ([name tags]
+   (get-task-timer *metrics* name tags))
+  ([metrics ^String name tags]
+   (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
+     (let [timer (get-in @metrics [name tags])]
+       (cond
+         (instance? LongTaskTimer timer) timer
+         (some? timer) (throw (ex-info "Metric already registered and is not long task timer" {:name name, :tags tags, :metric timer}))
+         :else
+         (let [timer (.longTaskTimer (.more registry) name (to-tags tags))]
+           (swap! metrics assoc-in [name tags] timer)
+           timer))))))
 
 (defmacro with-task-timer [^LongTaskTimer timer & body]
   `(let [f# (fn [] ~@body)]
      (if ~timer (.recordCallable ^LongTaskTimer ~timer f#) (f#))))
 
 (defmacro task-timed [metrics name tags & body]
-  `(let [timer# (get-task-timer ~metrics ~name ~tags), f# (fn [] ~@body)]
+  `(let [timer# (get-task-timer (or ~metrics *metrics*) ~name ~tags), f# (fn [] ~@body)]
      (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#))))
 
-(defn get-counter [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
-  (when metrics
-    (let [counter (get-in @metrics [name tags])]
-      (cond
-        (instance? Counter counter) counter
-        (some? counter) (throw (ex-info "Metric already registered and is not a counter" {:name name, :tags tags, :metric counter}))
-        :else
-        (let [counter (.counter registry name (to-tags tags))]
-          (swap! metrics assoc-in [name tags] counter)
-          counter)))))
+(defn get-counter
+  ([name tags]
+   (get-counter *metrics* name tags))
+  ([metrics ^String name tags]
+   (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
+     (let [counter (get-in @metrics [name tags])]
+       (cond
+         (instance? Counter counter) counter
+         (some? counter) (throw (ex-info "Metric already registered and is not a counter" {:name name, :tags tags, :metric counter}))
+         :else
+         (let [counter (.counter registry name (to-tags tags))]
+           (swap! metrics assoc-in [name tags] counter)
+           counter))))))
 
 (defn inc-counter
-  ([^Counter counter]
-   (when counter (.increment counter)))
   ([^Counter counter n]
    (when counter (.increment counter n)))
-  ([metrics name tags]
-   (inc-counter metrics name tags 1.0))
+  ([name tags n]
+   (inc-counter *metrics* name tags n))
   ([metrics name tags n]
    (let [counter (get-counter metrics name tags)]
      (when counter (.increment counter n)))))
 
-(defn function-counter [{:keys [registry metrics]} name tags obj cfn]
-  (when metrics
-    (let [counter (get-in @metrics [name tags])]
-      (cond
-        (instance? FunctionCounter counter) counter
-        (some? counter) (throw (ex-info "Metric already registered and is not function counter" {:name name, :tags tags, :metric counter}))
-        :else
-        (let [cntfn (reify ToDoubleFunction (applyAsDouble [_ v] (double (cfn v))))
-              counter (.counter (.more registry) name (to-tags tags) obj cntfn)]
-          (swap! metrics assoc-in [name tags] counter)
-          counter)))))
+(defn function-counter
+  ([name tags obj cfn]
+   (function-counter *metrics* name tags obj cfn))
+  ([metrics name tags obj cfn]
+   (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
+     (let [counter (get-in @metrics [name tags])]
+       (cond
+         (instance? FunctionCounter counter) counter
+         (some? counter) (throw (ex-info "Metric already registered and is not function counter" {:name name, :tags tags, :metric counter}))
+         :else
+         (let [cntfn (reify ToDoubleFunction (applyAsDouble [_ v] (double (cfn v))))
+               counter (.counter (.more registry) name (to-tags tags) obj cntfn)]
+           (swap! metrics assoc-in [name tags] counter)
+           counter))))))
 
-(defn get-gauge [{:keys [metrics ^MeterRegistry registry] :as m} name tags gfn]
-  (when metrics
-    (let [gauge (get-in @metrics [name tags])]
-      (cond
-        (instance? Gauge gauge) gauge
-        (some? gauge) (throw (ex-info "Metric already registered and is not a gauge" {:name name, :tags tags, :metric gauge}))
-        :else
-        (let [supplier (reify Supplier (get [_] (gfn))),
-              gauge (.register (.tags (Gauge/builder name supplier) (to-tags tags)) registry)]
-          (swap! metrics assoc-in [name tags] gauge)
-          gauge)))))
+(defn get-gauge
+  ([name tags gfn]
+   (get-gauge *metrics* name tags gfn))
+  ([metrics name tags gfn]
+   (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *metrics*)]
+     (let [gauge (get-in @metrics [name tags])]
+       (cond
+         (instance? Gauge gauge) gauge
+         (some? gauge) (throw (ex-info "Metric already registered and is not a gauge" {:name name, :tags tags, :metric gauge}))
+         :else
+         (let [supplier (reify Supplier (get [_] (gfn))),
+               gauge (.register (.tags (Gauge/builder name supplier) (to-tags tags)) registry)]
+           (swap! metrics assoc-in [name tags] gauge)
+           gauge))))))
 
 (defmacro defgauge [metrics name tags & body]
   `(when ~metrics (get-gauge ~metrics ~name ~tags (fn [] ~@body))))
 
-(defn get-summary [{:keys [metrics ^MeterRegistry registry] :as m} name tags]
-  (when metrics
-    (let [summary (get-in @metrics [name tags])]
-      (cond
-        (instance? DistributionSummary summary) summary
-        (some? summary) (throw (ex-info "Metric already registered and is not a summary" {:name name, :tags tags, :metric summary}))
-        :else
-        (let [summary (.summary registry ^String name ^Iterable (to-tags tags))]
-          (swap! metrics assoc-in [name tags] summary)
-          summary)))))
+(defn get-summary
+  ([name tags]
+   (get-summary *metrics* name tags))
+  ([metrics name tags]
+   (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *metrics*)]
+     (let [summary (get-in @metrics [name tags])]
+       (cond
+         (instance? DistributionSummary summary) summary
+         (some? summary) (throw (ex-info "Metric already registered and is not a summary" {:name name, :tags tags, :metric summary}))
+         :else
+         (let [summary (.summary registry ^String name ^Iterable (to-tags tags))]
+           (swap! metrics assoc-in [name tags] summary)
+           summary))))))
 
 (defn inc-summary
   ([^DistributionSummary summary v]
    (when summary (.record summary (double v))))
+  ([name tags v]
+   (when-let [summary (get-summary *metrics* name tags)]
+     (.record summary (double v))))
   ([metrics name tags v]
    (when-let [summary (get-summary metrics name tags)]
      (.record summary (double v)))))
