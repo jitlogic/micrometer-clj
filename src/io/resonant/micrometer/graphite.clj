@@ -1,11 +1,10 @@
 (ns io.resonant.micrometer.graphite
   (:require
-    [io.resonant.micrometer :refer [create-registry]])
+    [io.resonant.micrometer :refer [create-registry to-duration]])
   (:import (io.micrometer.graphite GraphiteMeterRegistry GraphiteConfig GraphiteProtocol)
            (io.micrometer.core.instrument Clock)
            (java.util.concurrent TimeUnit)
-           (io.micrometer.core.instrument.dropwizard DropwizardConfig)
-           (java.time Duration)))
+           (io.micrometer.core.instrument.dropwizard DropwizardConfig)))
 
 (defmethod create-registry :graphite [cfg]
   (GraphiteMeterRegistry.
@@ -21,6 +20,6 @@
       (enabled [_] (:enabled? cfg true))
       (protocol [_] (GraphiteProtocol/valueOf (.toUpperCase (name (:protocol cfg :PICKLED)))))
       DropwizardConfig
-      (step [_] (Duration/ofMillis (:step cfg 60000))))
+      (step [_] (to-duration (:step cfg 60000))))
     (Clock/SYSTEM)))
 

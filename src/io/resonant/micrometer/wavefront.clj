@@ -1,9 +1,8 @@
 (ns io.resonant.micrometer.wavefront
   (:require
-    [io.resonant.micrometer :refer [create-registry]])
+    [io.resonant.micrometer :refer [create-registry to-duration]])
   (:import (io.micrometer.wavefront WavefrontMeterRegistry WavefrontConfig)
            (io.micrometer.core.instrument.push PushRegistryConfig)
-           (java.time Duration)
            (io.micrometer.core.instrument Clock)))
 
 (defmethod create-registry :wavefront [cfg]
@@ -18,9 +17,9 @@
       (reportHourDistribution [_] (:report-hour-distribution? cfg false))
       (reportDayDistribution [_] (:report-day-distribution? cfg false))
       PushRegistryConfig
-      (step [_] (Duration/ofMillis (:step cfg 60000)))
+      (step [_] (to-duration (:step cfg 60000)))
       (enabled [_] (:enabled? cfg true))
       (numThreads [_] (:num-threads cfg 2))
-      (connectTimeout [_] (Duration/ofMillis (:connect-timeout cfg 1000)))
-      (readTimeout [_] (Duration/ofMillis (:read-timeout cfg 10000))))
+      (connectTimeout [_] (to-duration (:connect-timeout cfg 1000)))
+      (readTimeout [_] (to-duration (:read-timeout cfg 10000))))
     (Clock/SYSTEM)))

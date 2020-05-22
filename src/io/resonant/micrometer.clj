@@ -29,6 +29,22 @@
 (defn ^Iterable to-tags [tags]
   (for [[k v] tags] (Tag/of (to-string k) (to-string v))))
 
+(defn ^Duration to-duration [d]
+  (cond
+    (instance? Duration d) d
+    (number? d) (Duration/ofMillis d)
+    (string? d)
+    (let [[_ n s] (re-matches #"(\d+)(ms|s|m|h|d)" d)]
+      (case s
+        "ms" (Duration/ofMillis (Long/parseLong n))
+        "s" (Duration/ofSeconds (Long/parseLong n))
+        "m" (Duration/ofMinutes (Long/parseLong n))
+        "h" (Duration/ofHours (Long/parseLong n))
+        "d" (Duration/ofDays (Long/parseLong n)))
+      (throw (ex-info "invalid duration string" {:duration d})))
+    :else
+    (throw (ex-info "invalid duration value" {:duration d}))))
+
 (defn- reg-to-map [v]
   (if (map? v) v {:registry v}))
 

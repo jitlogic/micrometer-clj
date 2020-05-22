@@ -1,9 +1,8 @@
 (ns io.resonant.micrometer.newrelic
   (:require
-    [io.resonant.micrometer :refer [create-registry]])
+    [io.resonant.micrometer :refer [create-registry to-duration]])
   (:import (io.micrometer.newrelic NewRelicMeterRegistry NewRelicConfig ClientProviderType)
            (io.micrometer.core.instrument.step StepRegistryConfig)
-           (java.time Duration)
            (io.micrometer.core.instrument Clock)))
 
 (defmethod create-registry :newrelic [cfg]
@@ -18,10 +17,10 @@
       (accountId [_] (:account-id cfg))
       (uri [_] (:url cfg "https://insights-collector.newrelic.com"))
       StepRegistryConfig
-      (step [_] (Duration/ofMillis (:step cfg 60000)))
+      (step [_] (to-duration (:step cfg 60000)))
       (enabled [_] (:enabled? cfg true))
       (numThreads [_] (:num-threads cfg 2))
-      (connectTimeout [_] (Duration/ofMillis (:connect-timeout cfg 1000)))
-      (readTimeout [_] (Duration/ofMillis (:read-timeout cfg 10000)))
+      (connectTimeout [_] (to-duration (:connect-timeout cfg 1000)))
+      (readTimeout [_] (to-duration (:read-timeout cfg 10000)))
       (batchSize [_] (:batch-size cfg 10000)))
     (Clock/SYSTEM)))

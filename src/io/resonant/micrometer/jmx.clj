@@ -1,10 +1,9 @@
 (ns io.resonant.micrometer.jmx
   (:require
-    [io.resonant.micrometer :refer [create-registry]])
+    [io.resonant.micrometer :refer [create-registry to-duration]])
   (:import
     (io.micrometer.jmx JmxMeterRegistry JmxConfig)
     (io.micrometer.core.instrument.dropwizard DropwizardConfig)
-    (java.time Duration)
     (io.micrometer.core.instrument Clock)))
 
 (defmethod create-registry :jmx [cfg]
@@ -14,5 +13,5 @@
       (get [_ _] nil)
       (domain [_] (:domain cfg))
       DropwizardConfig
-      (step [_] (Duration/ofMillis (:step cfg 60000))))
+      (step [_] (to-duration (:step cfg 60000))))
     (Clock/SYSTEM)))

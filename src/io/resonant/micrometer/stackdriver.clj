@@ -1,6 +1,6 @@
 (ns io.resonant.micrometer.stackdriver
   (:require
-    [io.resonant.micrometer :refer [create-registry]]
+    [io.resonant.micrometer :refer [create-registry to-duration]]
     [clojure.java.io :as io])
   (:import
     (io.micrometer.stackdriver StackdriverMeterRegistry StackdriverConfig)
@@ -8,8 +8,7 @@
     (com.google.api.gax.core FixedCredentialsProvider)
     (com.google.cloud.monitoring.v3 MetricServiceSettings)
     (io.micrometer.core.instrument.step StepRegistryConfig)
-    (io.micrometer.core.instrument Clock)
-    (java.time Duration)))
+    (io.micrometer.core.instrument Clock)))
 
 (defn- read-credentials [path]
   (when (nil? path)
@@ -29,9 +28,9 @@
         (resourceType [_] (:resource-type cfg "global"))
         (credentials [_] creds)
         StepRegistryConfig
-        (step [_] (Duration/ofMillis (:step cfg 60000)))
+        (step [_] (to-duration (:step cfg 60000)))
         (enabled [_] (:enabled? cfg true))
         (numThreads [_] (:num-threads cfg 2))
-        (connectTimeout [_] (Duration/ofMillis (:connect-timeout cfg 1000)))
-        (readTimeout [_] (Duration/ofMillis (:read-timeout cfg 10000))))
+        (connectTimeout [_] (to-duration (:connect-timeout cfg 1000)))
+        (readTimeout [_] (to-duration (:read-timeout cfg 10000))))
       (Clock/SYSTEM))))

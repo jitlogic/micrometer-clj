@@ -1,30 +1,29 @@
 (ns io.resonant.micrometer.atlas
   (:require
-    [io.resonant.micrometer :refer [create-registry]])
+    [io.resonant.micrometer :refer [create-registry to-duration]])
   (:import (io.micrometer.atlas AtlasMeterRegistry)
            (com.netflix.spectator.api RegistryConfig)
-           (com.netflix.spectator.atlas AtlasConfig)
-           (java.time Duration)))
+           (com.netflix.spectator.atlas AtlasConfig)))
 
 (defmethod create-registry :atlas [cfg]
   (AtlasMeterRegistry.
     (reify
       AtlasConfig
-      (step [_] (Duration/ofMillis (:step cfg 60000)))
-      (meterTTL [_] (Duration/ofMillis (:step cfg 900000)))
+      (step [_] (to-duration (:step cfg 60000)))
+      (meterTTL [_] (to-duration (:step cfg 900000)))
       (enabled [_] (:enabled? cfg true))
       (autoStart [_] (:auto-start cfg false))
       (numThreads [_] (:num-threads cfg 4))
       (uri [_] (:url cfg "http://localhost:7101/api/v1/publish"))
-      (lwcStep [_] (Duration/ofMillis (:lwc-step cfg 5000)))
+      (lwcStep [_] (to-duration (:lwc-step cfg 5000)))
       (lwcEnabled [_] (:lwc-enabled? cfg false))
       (lwcIgnorePublishStep [_] (:lwc-ignore-publish-step cfg true))
-      (configRefreshFrequency [_] (Duration/ofMillis (:config-refresh-frequency cfg 10000)))
-      (configTTL [_] (Duration/ofMillis (:config-ttl cfg 150000)))
+      (configRefreshFrequency [_] (to-duration (:config-refresh-frequency cfg 10000)))
+      (configTTL [_] (to-duration (:config-ttl cfg 150000)))
       (configUri [_] (:config-url cfg "http://localhost:7101/lwc/api/v1/expressions/local-dev"))
       (evalUri [_] (:eval-uri cfg "http://localhost:7101/lwc/api/v1/evaluate"))
-      (connectTimeout [_] (Duration/ofMillis (:connect-timeout cfg 1000)))
-      (readTimeout [_] (Duration/ofMillis (:read-timeout cfg 10000)))
+      (connectTimeout [_] (to-duration (:connect-timeout cfg 1000)))
+      (readTimeout [_] (to-duration (:read-timeout cfg 10000)))
       (batchSize [_] (:batch-size cfg 10000))
       (commonTags [_] (:common-tags cfg {}))
       (validTagCharacters [_] (:valid-tag-characters cfg "-._A-Za-z0-9~^"))
@@ -32,5 +31,5 @@
       (get [_ _] nil)
       (propagateWarnings [_] (:propagate-warnings cfg false))
       (maxNumberOfMeters [_] (:max-atlas-meters cfg Integer/MAX_VALUE))
-      (gaugePollingFrequency [_] (Duration/ofMillis (:gauge-polling-frequency cfg 10000))))))
+      (gaugePollingFrequency [_] (to-duration (:gauge-polling-frequency cfg 10000))))))
 
