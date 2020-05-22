@@ -87,15 +87,15 @@
       (is (= 1 (.count timer)))
       (is (= 1 @tcnt))
       ; test indirectly used timer
-      (is (= 42 (m/timed metrics "test" {:foo "bar"} (Thread/sleep 1) (Thread/sleep 1) 42)))
+      (is (= 42 (m/timed metrics "test" {:foo "bar"} {} (Thread/sleep 1) (Thread/sleep 1) 42)))
       (is (= 2 (.count timer)))
       ; test indireclty used null timer
-      (m/timed nil "test" {:foo "bar"} (swap! tcnt inc))
+      (m/timed nil "test" {:foo "bar"} {} (swap! tcnt inc))
       (is (= 2 (.count timer)))
       (is (= 2 @tcnt))
-      (m/inc-timer-ms timer 10)
+      (m/inc-timer timer 10)
       (is (= 3 (.count timer)))
-      (m/inc-timer-ms metrics "test" {:foo "bar"} 10)
+      (m/inc-timer metrics "test" {:foo "bar"} 10)
       (is (= 4 (.count timer))))))
 
 (deftest test-long-task-timer-metrics
@@ -114,7 +114,7 @@
       (is (= (.duration timer TimeUnit/MILLISECONDS) 0.0))
       (is (= (.activeTasks timer) 0))
       (is (= 42)
-        (m/task-timed metrics "test" {:foo "bar"}
+        (m/task-timed metrics "test" {:foo "bar"} {}
           (Thread/sleep 2)
           (is (> (.duration timer TimeUnit/MILLISECONDS) 0.0))
           (swap! tcnt inc)
@@ -147,8 +147,8 @@
 (deftest test-gauge-metrics
   (testing "Gauge metrics registration and usage"
     (let [data (atom [1 2 3]), metrics (m/metrics SIMPLE),
-          gauge (m/defgauge metrics "test" {:foo "bar"} (count @data))
-          g1 (m/defgauge nil "test" {:foo "bar"} (count @data))]
+          gauge (m/defgauge metrics "test" {:foo "bar"} {} (count @data))
+          g1 (m/defgauge nil "test" {:foo "bar"} {} (count @data))]
       (is (nil? g1))
       (is (= 3.0 (.value gauge)))
       (swap! data conj 4)

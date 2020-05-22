@@ -3,11 +3,11 @@
     (java.util.function Supplier Function Predicate ToDoubleFunction)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
-    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id LongTaskTimer FunctionCounter DistributionSummary)
+    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id LongTaskTimer FunctionCounter DistributionSummary Tags LongTaskTimer$Builder)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
     (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
     (io.micrometer.core.instrument.config MeterFilter MeterFilterReply)
-    (io.micrometer.core.instrument.distribution DistributionStatisticConfig DistributionStatisticConfig$Builder)
+    (io.micrometer.core.instrument.distribution DistributionStatisticConfig)
     (java.time Duration)))
 
 (defn to-string [v]
@@ -26,7 +26,7 @@
     (reify Predicate (test [_ v] (true? (v-or-fn v))))
     (reify Predicate (test [_ v] (true? v)))))
 
-(defn ^Iterable to-tags [tags]
+(defn- ^Iterable to-tags [tags]
   (for [[k v] tags] (Tag/of (to-string k) (to-string v))))
 
 (defn ^Duration to-duration [d]
@@ -95,7 +95,7 @@
     (when sla (.serviceLevelObjectives b (double-array sla)))
     (when min-val (.minimumExpectedValue b ^Double (double min-val)))
     (when max-val (.maximumExpectedValue b ^Double (double max-val)))
-    (when expiry (.expiry b (Duration/ofMillis expiry)))
+    (when expiry (.expiry b (to-duration expiry)))
     (when buf-len (.bufferLength b buf-len))))
 
 (defn- meter-filter [{:keys [registry]} mf]
@@ -202,15 +202,29 @@
 
 (defn get-timer
   ([name tags]
-   (get-timer *metrics* name tags))
-  ([metrics ^String name tags]
+   (get-timer *metrics* name tags {}))
+  ([metrics name tags]
+   (get-timer metrics name tags {}))
+  ([metrics ^String name tags {:keys [description percentiles precision histogram? sla min-val max-val expiry buf-len]}]
    (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
      (let [timer (get-in @metrics [name tags])]
        (cond
          (instance? Timer timer) timer
          (some? timer) (throw (ex-info "Metric already registered and is not a timer" {:name name, :tags tags, :metric timer}))
          :else
-         (let [timer (.timer registry name (to-tags tags))]
+         (let [timer (cond->
+                       (Timer/builder name)
+                       (map? tags) (.tags (to-tags tags))
+                       (string? description) (.description description)
+                       (some? percentiles) (.publishPercentiles (double-array percentiles))
+                       (number? precision) (.percentilePrecision precision)
+                       (boolean? histogram?) (.publishPercentileHistogram histogram?)
+                       (some? sla) (.serviceLevelObjectives (into-array (for [s sla] (to-duration s))))
+                       (number? min-val) (.minimumExpectedValue (to-duration min-val))
+                       (number? max-val) (.maximumExpectedValue (to-duration max-val))
+                       (number? expiry) (.distributionStatisticExpiry (to-duration expiry))
+                       (number? buf-len) (.distributionStatisticBufferLength buf-len)
+                       true (.register registry))]
            (swap! metrics assoc-in [name tags] timer)
            timer))))))
 
@@ -218,43 +232,50 @@
   `(let [f# (fn [] ~@body)]
      (if ~timer (.recordCallable ^Timer ~timer f#) (f#))))
 
-(defmacro timed [metrics name tags & body]
-  `(let [timer# (get-timer (or ~metrics *metrics*) ~name ~tags), f# (fn [] ~@body)]
+(defmacro timed [metrics name tags options & body]
+  `(let [timer# (get-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
      (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#))))
 
 (defn inc-timer
   ([timer duration]
    (when timer
-     (.record ^Timer timer ^Duration duration)))
+     (.record ^Timer timer (to-duration duration))))
   ([name tags duration]
    (when-let [timer (get-timer *metrics* name tags)]
-     (.record ^Timer timer ^Duration duration)))
+     (.record ^Timer timer (to-duration duration))))
   ([metrics name tags duration]
    (when-let [timer (get-timer metrics name tags)]
-     (.record ^Timer timer ^Duration duration))))
-
-(defn inc-timer-ms
-  ([timer duration]
-   (when timer
-     (.record ^Timer timer (Duration/ofMillis duration))))
-  ([name tags duration]
-   (when-let [timer (get-timer *metrics* name tags)]
-     (.record ^Timer timer (Duration/ofMillis duration))))
-  ([metrics name tags duration]
-   (when-let [timer (get-timer metrics name tags)]
-     (.record ^Timer timer (Duration/ofMillis duration)))))
+     (.record ^Timer timer (to-duration duration))))
+  ([metrics name tags options duration]
+   (when-let [timer (get-timer metrics name tags options)]
+     (.record ^Timer timer (to-duration duration)))))
 
 (defn get-task-timer
   ([name tags]
    (get-task-timer *metrics* name tags))
-  ([metrics ^String name tags]
+  ([metrics name tags]
+   (get-task-timer metrics name tags {}))
+  ([metrics ^String name tags {:keys [description percentiles precision histogram? sla min-val max-val expiry buf-len]}]
    (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
      (let [timer (get-in @metrics [name tags])]
        (cond
          (instance? LongTaskTimer timer) timer
          (some? timer) (throw (ex-info "Metric already registered and is not long task timer" {:name name, :tags tags, :metric timer}))
          :else
-         (let [timer (.longTaskTimer (.more registry) name (to-tags tags))]
+         (let [timer
+               (cond->
+                 (LongTaskTimer/builder  name)
+                 (map? tags) (.tags (to-tags tags))
+                 (string? description) (.description description)
+                 (some? percentiles) (.publishPercentiles (double-array percentiles))
+                 (number? precision) (.percentilePrecision precision)
+                 (boolean? histogram?) (.publishPercentileHistogram histogram?)
+                 (some? sla) (.serviceLevelObjectives (into-array (for [s sla] (to-duration s))))
+                 (number? min-val) (.minimumExpectedValue (to-duration min-val))
+                 (number? max-val) (.maximumExpectedValue (to-duration max-val))
+                 (number? expiry) (.distributionStatisticExpiry (to-duration expiry))
+                 (number? buf-len) (.distributionStatisticBufferLength buf-len)
+                 true (.register registry))]
            (swap! metrics assoc-in [name tags] timer)
            timer))))))
 
@@ -262,21 +283,28 @@
   `(let [f# (fn [] ~@body)]
      (if ~timer (.recordCallable ^LongTaskTimer ~timer f#) (f#))))
 
-(defmacro task-timed [metrics name tags & body]
-  `(let [timer# (get-task-timer (or ~metrics *metrics*) ~name ~tags), f# (fn [] ~@body)]
+(defmacro task-timed [metrics name tags options & body]
+  `(let [timer# (get-task-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
      (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#))))
 
 (defn get-counter
   ([name tags]
-   (get-counter *metrics* name tags))
-  ([metrics ^String name tags]
+   (get-counter *metrics* name tags {}))
+  ([metrics name tags]
+   (get-counter metrics name tags {}))
+  ([metrics ^String name tags {:keys [description base-unit]}]
    (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
      (let [counter (get-in @metrics [name tags])]
        (cond
          (instance? Counter counter) counter
          (some? counter) (throw (ex-info "Metric already registered and is not a counter" {:name name, :tags tags, :metric counter}))
          :else
-         (let [counter (.counter registry name (to-tags tags))]
+         (let [counter (cond->
+                         (Counter/builder name)
+                         (map? tags) (.tags (to-tags tags))
+                         (string? description) (.description description)
+                         (string? base-unit) (.baseUnit base-unit)
+                         true (.register registry))]
            (swap! metrics assoc-in [name tags] counter)
            counter))))))
 
@@ -287,6 +315,9 @@
    (inc-counter *metrics* name tags n))
   ([metrics name tags n]
    (let [counter (get-counter metrics name tags)]
+     (when counter (.increment counter n))))
+  ([metrics name tags options n]
+   (let [counter (get-counter metrics name tags options)]
      (when counter (.increment counter n)))))
 
 (defn function-counter
@@ -306,8 +337,10 @@
 
 (defn get-gauge
   ([name tags gfn]
-   (get-gauge *metrics* name tags gfn))
+   (get-gauge *metrics* name tags {} gfn))
   ([metrics name tags gfn]
+   (get-gauge metrics name tags {} gfn))
+  ([metrics name tags {:keys [description base-unit strong-ref?]} gfn]
    (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *metrics*)]
      (let [gauge (get-in @metrics [name tags])]
        (cond
@@ -315,24 +348,46 @@
          (some? gauge) (throw (ex-info "Metric already registered and is not a gauge" {:name name, :tags tags, :metric gauge}))
          :else
          (let [supplier (reify Supplier (get [_] (gfn))),
-               gauge (.register (.tags (Gauge/builder name supplier) (to-tags tags)) registry)]
+               gauge (cond->
+                       (Gauge/builder name supplier)
+                       (map? tags) (.tags (to-tags tags))
+                       (string? description) (.description description)
+                       (string? base-unit) (.baseUnit base-unit)
+                       (boolean? strong-ref?) (.strongReference strong-ref?)
+                       true (.register registry))]
            (swap! metrics assoc-in [name tags] gauge)
            gauge))))))
 
-(defmacro defgauge [metrics name tags & body]
-  `(when ~metrics (get-gauge ~metrics ~name ~tags (fn [] ~@body))))
+(defmacro defgauge [metrics name tags options & body]
+  `(when ~metrics (get-gauge ~metrics ~name ~tags ~options (fn [] ~@body))))
 
 (defn get-summary
   ([name tags]
-   (get-summary *metrics* name tags))
+   (get-summary *metrics* name tags {}))
   ([metrics name tags]
+   (get-summary metrics name tags {}))
+  ([metrics name tags {:keys [description base-unit percentiles precision histogram? sla min-val max-val expiry buf-len scale]}]
    (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *metrics*)]
      (let [summary (get-in @metrics [name tags])]
        (cond
          (instance? DistributionSummary summary) summary
          (some? summary) (throw (ex-info "Metric already registered and is not a summary" {:name name, :tags tags, :metric summary}))
          :else
-         (let [summary (.summary registry ^String name ^Iterable (to-tags tags))]
+         (let [summary (cond->
+                         (DistributionSummary/builder name)
+                         (map? tags) (.tags (to-tags tags))
+                         (string? description) (.description description)
+                         (string? base-unit) (.baseUnit base-unit)
+                         (some? percentiles) (.publishPercentiles (double-array percentiles))
+                         (number? precision) (.percentilePrecision precision)
+                         (boolean? histogram?) (.publishPercentileHistogram histogram?)
+                         (some? sla) (.serviceLevelObjectives (into-array (for [s sla] (to-duration s))))
+                         (number? min-val) (.minimumExpectedValue ^Double (double min-val))
+                         (number? max-val) (.maximumExpectedValue ^Double (double max-val))
+                         (number? expiry) (.distributionStatisticExpiry (to-duration expiry))
+                         (number? buf-len) (.distributionStatisticBufferLength buf-len)
+                         (number? scale) (.scale (double scale))
+                         true (.register registry))]
            (swap! metrics assoc-in [name tags] summary)
            summary))))))
 
@@ -344,4 +399,7 @@
      (.record summary (double v))))
   ([metrics name tags v]
    (when-let [summary (get-summary metrics name tags)]
+     (.record summary (double v))))
+  ([metrics name tags options v]
+   (when-let [summary (get-summary metrics name tags options)]
      (.record summary (double v)))))
