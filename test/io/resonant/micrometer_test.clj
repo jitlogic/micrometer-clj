@@ -92,7 +92,11 @@
       ; test indireclty used null timer
       (m/timed nil "test" {:foo "bar"} (swap! tcnt inc))
       (is (= 2 (.count timer)))
-      (is (= 2 @tcnt)))))
+      (is (= 2 @tcnt))
+      (m/inc-timer-ms timer 10)
+      (is (= 3 (.count timer)))
+      (m/inc-timer-ms metrics "test" {:foo "bar"} 10)
+      (is (= 4 (.count timer))))))
 
 (deftest test-long-task-timer-metrics
   (testing "Long task timer registration and usage"

@@ -201,6 +201,22 @@
   `(let [timer# (get-timer ~metrics ~name ~tags), f# (fn [] ~@body)]
      (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#))))
 
+(defn inc-timer
+  ([timer duration]
+   (when timer
+     (.record ^Timer timer ^Duration duration)))
+  ([metrics name tags duration]
+   (when-let [timer (get-timer metrics name tags)]
+     (.record ^Timer timer ^Duration duration))))
+
+(defn inc-timer-ms
+  ([timer duration]
+   (when timer
+     (.record ^Timer timer (Duration/ofMillis duration))))
+  ([metrics name tags duration]
+   (when-let [timer (get-timer metrics name tags)]
+     (.record ^Timer timer (Duration/ofMillis duration)))))
+
 (defn get-task-timer
   [{:keys [metrics ^MeterRegistry registry]} ^String name tags]
   (let [timer (get-in @metrics [name tags])]
