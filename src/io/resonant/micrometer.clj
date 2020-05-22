@@ -3,7 +3,7 @@
     (java.util.function Supplier Function Predicate ToDoubleFunction)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
-    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id LongTaskTimer FunctionCounter)
+    (io.micrometer.core.instrument Clock Timer MeterRegistry Tag Counter Gauge Meter Measurement Meter$Id LongTaskTimer FunctionCounter DistributionSummary)
     (io.micrometer.core.instrument.binder.jvm ClassLoaderMetrics JvmMemoryMetrics JvmGcMetrics JvmThreadMetrics JvmCompilationMetrics JvmHeapPressureMetrics)
     (io.micrometer.core.instrument.binder.system FileDescriptorMetrics ProcessorMetrics UptimeMetrics)
     (io.micrometer.core.instrument.config MeterFilter MeterFilterReply)
@@ -269,3 +269,20 @@
 (defmacro defgauge [metrics name tags & body]
   `(when ~metrics (get-gauge ~metrics ~name ~tags (fn [] ~@body))))
 
+(defn get-summary [{:keys [metrics ^MeterRegistry registry] :as m} name tags]
+  (when metrics
+    (let [summary (get-in @metrics [name tags])]
+      (cond
+        (instance? DistributionSummary summary) summary
+        (some? summary) (throw (ex-info "Metric already registered and is not a summary" {:name name, :tags tags, :metric summary}))
+        :else
+        (let [summary (.summary registry ^String name ^Iterable (to-tags tags))]
+          (swap! metrics assoc-in [name tags] summary)
+          summary)))))
+
+(defn inc-summary
+  ([^DistributionSummary summary v]
+   (when summary (.record summary (double v))))
+  ([metrics name tags v]
+   (when-let [summary (get-summary metrics name tags)]
+     (.record summary (double v)))))

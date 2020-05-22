@@ -25,7 +25,7 @@
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
     (io.micrometer.core.instrument.composite CompositeMeterRegistry)
     (io.micrometer.prometheus PrometheusMeterRegistry)
-    (io.micrometer.core.instrument Timer Counter MeterRegistry LongTaskTimer FunctionCounter)
+    (io.micrometer.core.instrument Timer Counter MeterRegistry LongTaskTimer FunctionCounter DistributionSummary)
     (io.micrometer.elastic ElasticMeterRegistry)
     (io.micrometer.opentsdb OpenTSDBMeterRegistry)
     (io.micrometer.graphite GraphiteMeterRegistry)
@@ -181,3 +181,11 @@
              :tag-limits [{:prefix "jvm", :tag "foo", :max-vals 10, :on-limit {:deny true}}]
              :val-limits [{:prefix "jvm", :min 0, :max 10}]}]
     (is (some? (:registry (m/metrics cfg))))))
+
+(deftest test-distribution-summary
+  (let [metrics (m/metrics {:type :simple})
+        ^DistributionSummary summary (m/get-summary metrics "test" {:foo "bar"})]
+    (m/inc-summary summary 4)
+    (m/inc-summary metrics "test" {:foo "bar"} 4)
+    (is (= 2 (.count summary)))
+    (is (= 8.0 (.totalAmount summary)))))
