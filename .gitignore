@@ -12,3 +12,7 @@ pom.xml.asc
 .hg/
 *.iml
 .idea/*
+_*.sh
+.eastwood
+.sonar_lock
+report-task.txt
