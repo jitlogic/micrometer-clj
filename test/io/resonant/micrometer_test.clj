@@ -87,10 +87,10 @@
       (is (= 1 (.count timer)))
       (is (= 1 @tcnt))
       ; test indirectly used timer
-      (is (= 42 (m/timed metrics "test" {:foo "bar"} {} (Thread/sleep 1) (Thread/sleep 1) 42)))
+      (is (= 42 (m/timed [metrics "test" {:foo "bar"}] (Thread/sleep 1) (Thread/sleep 1) 42)))
       (is (= 2 (.count timer)))
       ; test indireclty used null timer
-      (m/timed nil "test" {:foo "bar"} {} (swap! tcnt inc))
+      (m/timed ["test" {:foo "bar"}] (swap! tcnt inc))
       (is (= 2 (.count timer)))
       (is (= 2 @tcnt))
       (m/inc-timer timer 10)
@@ -114,8 +114,8 @@
       (is (= (.duration timer TimeUnit/MILLISECONDS) 0.0))
       (is (= (.activeTasks timer) 0))
       (is (= 42)
-        (m/task-timed metrics "test" {:foo "bar"} {}
-          (Thread/sleep 2)
+        (m/task-timed [metrics "test" {:foo "bar"}]
+                      (Thread/sleep 2)
           (is (> (.duration timer TimeUnit/MILLISECONDS) 0.0))
           (swap! tcnt inc)
           (is (= 1) (.activeTasks timer))

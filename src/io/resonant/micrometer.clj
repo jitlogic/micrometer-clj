@@ -51,6 +51,9 @@
 
 (def ^:dynamic *metrics* nil)
 
+(defn setup-metrics [metrics]
+  (alter-var-root #'*metrics* (constantly metrics)))
+
 (defmulti create-registry "Returns raw meter registry object from micrometer library." :type)
 
 (defmethod create-registry :simple [_]
@@ -233,9 +236,15 @@
   `(let [f# (fn [] ~@body)]
      (if ~timer (.recordCallable ^Timer ~timer f#) (f#))))
 
-(defmacro timed [metrics name tags options & body]
-  `(let [timer# (get-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
-     (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#))))
+(defn- parse-timed-args
+  ([name tags] [*metrics* name tags {}])
+  ([metrics name tags] [metrics name tags {}])
+  ([metrics name tags options] [metrics name tags options]))
+
+(defmacro timed [args & body]
+  (let [[metrics name tags options] (apply parse-timed-args args)]
+    `(let [timer# (get-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
+       (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#)))))
 
 (defn inc-timer
   ([timer duration]
@@ -284,9 +293,10 @@
   `(let [f# (fn [] ~@body)]
      (if ~timer (.recordCallable ^LongTaskTimer ~timer f#) (f#))))
 
-(defmacro task-timed [metrics name tags options & body]
-  `(let [timer# (get-task-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
-     (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#))))
+(defmacro task-timed [args & body]
+  (let [[metrics name tags options] (apply parse-timed-args args)]
+    `(let [timer# (get-task-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
+       (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#)))))
 
 (defn get-function-timer
   ([name tags obj cfn tfn time-unit]
