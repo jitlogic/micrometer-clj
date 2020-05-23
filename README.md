@@ -57,62 +57,6 @@ This one can be used to compose multiple registries into a single one. Configura
 }
 ```
 
-## Using timers
-
-Timers can be created using `get-timer` function:
-
-```clojure
-(def my-timer (m/get-timer registry "some.timer" {:foo "BAR"}))
-```
-
-Function accepts metric name (must be unique inside registry) and tags (can be empty). Note that meters are cached, so
-calling this function twice with the same parameters will return the same timer object.
-
-Resulting meter can be used in `with-timer` macro:
-
-```clojure
-(m/with-timer my-timer
-  (Thread/sleep 1000))
-```
-
-Also, there is `timed` macro that combines both:
-
-```clojure
-(m/timed registry "some.timer" {:foo "BAR"}
-  (Thread/sleep 1000))
-```
-
-## Using counters
-
-Counters are created using `get-counter` function:
-
-```clojure
-(def my-counter (m/get-counter registry "some.counter" {:baz "BAG"}))
-```
-
-Counters are consumed by `inc-counter` function:
-
-```clojure
-(m/inc-counter my-counter)
-(m/inc-counter my-counter 42)
-(m/inc-counter registry "other.counter" {:foo "BAR"})
-(m/inc-counter registry "other.counter" {:foo "BAR"} 0.42)
-```
-
-Two variants of `inc-counter` function can dynamically create necessary counters. 
-
-
-## Using gauges
-
-Gauges always return current state of some component. Gauges can be created using `get-gauge` function:
-
-```clojure
-(def tracked-value (atom 0))
-(def my-gauge (m/get-gauge registry "some.gauge" {:foo "BAR"} (fn [] @tracked-value))) 
-```
-
-Gauge will always return current value of 
-
 
 ## Listing and querying meters
 
