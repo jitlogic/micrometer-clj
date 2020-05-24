@@ -226,7 +226,7 @@
    (get-timer metrics name tags {}))
   ([metrics ^String name tags {:keys [description percentiles precision histogram? sla min-val max-val expiry buf-len]}]
    (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
-     (let [timer (get-in @metrics [name tags])]
+     (let [tags (or tags {}), timer (get-in @metrics [name tags])]
        (cond
          (instance? Timer timer) timer
          (some? timer) (throw (ex-info "Metric already registered and is not a timer" {:name name, :tags tags, :metric timer}))
@@ -282,7 +282,7 @@
    (get-task-timer metrics name tags {}))
   ([metrics ^String name tags {:keys [description percentiles precision histogram? sla min-val max-val expiry buf-len]}]
    (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
-     (let [timer (get-in @metrics [name tags])]
+     (let [tags (or tags {}), timer (get-in @metrics [name tags])]
        (cond
          (instance? LongTaskTimer timer) timer
          (some? timer) (throw (ex-info "Metric already registered and is not long task timer" {:name name, :tags tags, :metric timer}))
@@ -320,7 +320,7 @@
    (get-function-timer metrics name tags {} obj cfn tfn time-unit))
   ([metrics name tags {:keys [description]} obj cfn tfn time-unit]
    (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
-     (let [timer (get-in @metrics [name tags])]
+     (let [tags (or tags {}), timer (get-in @metrics [name tags])]
        (cond
          (instance? FunctionTimer timer) timer
          (some? timer) (throw (ex-info "Metric already registered and is not function timer" {:name name, :tags tags, :metric timer}))
@@ -342,7 +342,7 @@
    (get-counter metrics name tags {}))
   ([metrics ^String name tags {:keys [description base-unit]}]
    (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
-     (let [counter (get-in @metrics [name tags])]
+     (let [tags (or tags {}), counter (get-in @metrics [name tags])]
        (cond
          (instance? Counter counter) counter
          (some? counter) (throw (ex-info "Metric already registered and is not a counter" {:name name, :tags tags, :metric counter}))
@@ -375,7 +375,7 @@
    (get-function-counter metrics name tags {} obj cfn))
   ([metrics name tags {:keys [description base-unit]} obj cfn]
    (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
-     (let [counter (get-in @metrics [name tags])]
+     (let [tags (or tags {}), counter (get-in @metrics [name tags])]
        (cond
          (instance? FunctionCounter counter) counter
          (some? counter) (throw (ex-info "Metric already registered and is not function counter" {:name name, :tags tags, :metric counter}))
@@ -397,7 +397,7 @@
    (get-gauge metrics name tags {} gfn))
   ([metrics name tags {:keys [description base-unit strong-ref?]} gfn]
    (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *metrics*)]
-     (let [gauge (get-in @metrics [name tags])]
+     (let [tags (or tags {}), gauge (get-in @metrics [name tags])]
        (cond
          (instance? Gauge gauge) gauge
          (some? gauge) (throw (ex-info "Metric already registered and is not a gauge" {:name name, :tags tags, :metric gauge}))
@@ -424,7 +424,7 @@
    (get-summary metrics name tags {}))
   ([metrics name tags {:keys [description base-unit percentiles precision histogram? sla min-val max-val expiry buf-len scale]}]
    (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *metrics*)]
-     (let [summary (get-in @metrics [name tags])]
+     (let [tags (or tags {}), summary (get-in @metrics [name tags])]
        (cond
          (instance? DistributionSummary summary) summary
          (some? summary) (throw (ex-info "Metric already registered and is not a summary" {:name name, :tags tags, :metric summary}))
