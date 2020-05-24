@@ -54,9 +54,6 @@
 
 (defonce ^:dynamic *metrics* nil)
 
-(defn setup-metrics [metrics]
-  (alter-var-root #'*metrics* (constantly metrics)))
-
 (defmulti create-registry "Returns raw meter registry object from micrometer library." :type)
 
 (defmethod create-registry :simple [_]
@@ -175,6 +172,15 @@
 (defn close [{:keys [^MeterRegistry registry]}]
   (when registry
     (.close registry)))
+
+(defn setup-metrics [m]
+  (alter-var-root
+    #'*metrics*
+    (constantly
+      (cond
+        (nil? m) nil
+        (instance? MeterRegistry (:registry m)) m
+        :else (metrics m)))))
 
 (defmulti scrape "Returns data as registry-specific data or nil when given registry type cannot be scraped" :type)
 

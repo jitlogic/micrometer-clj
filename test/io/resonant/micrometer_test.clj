@@ -27,6 +27,10 @@
     (io.micrometer.kairos KairosMeterRegistry)
     (io.micrometer.signalfx SignalFxMeterRegistry)))
 
+(defn setup-fixture [f] (f) (m/setup-metrics nil))
+
+(use-fixtures :each setup-fixture)
+
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
 (defmacro ccr [clazz type & {:as args}]
@@ -185,3 +189,12 @@
     (m/inc-summary metrics "test" {:foo "bar"} 4)
     (is (= 2 (.count summary)))
     (is (= 8.0 (.totalAmount summary)))))
+
+(deftest test-setup-metrics
+  (testing "Test direct metrics setup"
+    (let [m (m/metrics SIMPLE)]
+      (m/setup-metrics m)
+      (is (identical? m m/*metrics*))))
+  (testing "Test in-flight metrics creation"
+    (m/setup-metrics SIMPLE)
+    (is (instance? MeterRegistry (:registry m/*metrics*)))))
