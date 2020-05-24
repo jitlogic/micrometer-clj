@@ -49,6 +49,9 @@
 (defn- reg-to-map [v]
   (if (map? v) v {:registry v}))
 
+(def REGISTRY-NS #{:appoptics :atlas :azure :cloudwatch :datadog :dynatrace :elastic :ganglia :graphite :humio
+                   :influx :jmx :kairos :newrelic :opentsdb :prometheus :signalfx :stackdriver :statsd :wavefront})
+
 (defonce ^:dynamic *metrics* nil)
 
 (defn setup-metrics [metrics]
@@ -65,8 +68,12 @@
     {:components components,
      :registry (CompositeMeterRegistry. Clock/SYSTEM (map :registry (vals components)))}))
 
-(defmethod create-registry :default [cfg]
-  (throw (ex-info "Invalid metrics registry type" {:cfg cfg})))
+(defmethod create-registry :default [{:keys [type] :as cfg}]
+  (if (contains? REGISTRY-NS type)
+    (do
+      (require (symbol (str "io.resonant.micrometer." (name type))))
+      (create-registry cfg))
+    (throw (ex-info "Unknown metrics registry type" {:cfg cfg}))))
 
 (def ^:private DEFAULT-JVM-METRICS [:classes :memory :gc :threads :jit :heap])
 

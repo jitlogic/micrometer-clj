@@ -2,24 +2,6 @@
   (:require
     [clojure.test :refer :all]
     [io.resonant.micrometer :as m]
-    io.resonant.micrometer.prometheus
-    io.resonant.micrometer.elastic
-    io.resonant.micrometer.opentsdb
-    io.resonant.micrometer.graphite
-    io.resonant.micrometer.influx
-    io.resonant.micrometer.jmx
-    io.resonant.micrometer.azure
-    io.resonant.micrometer.atlas
-    io.resonant.micrometer.statsd
-    io.resonant.micrometer.newrelic
-    io.resonant.micrometer.appoptics
-    io.resonant.micrometer.datadog
-    io.resonant.micrometer.ganglia
-    io.resonant.micrometer.dynatrace
-    io.resonant.micrometer.wavefront
-    io.resonant.micrometer.humio
-    io.resonant.micrometer.kairos
-    io.resonant.micrometer.signalfx
     clojure.string)
   (:import
     (io.micrometer.core.instrument.simple SimpleMeterRegistry)
