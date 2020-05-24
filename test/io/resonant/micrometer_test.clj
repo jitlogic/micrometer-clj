@@ -149,7 +149,7 @@
 (deftest test-tracking-counter
   (testing "Tracking metrics registration and usage"
     (let [metrics (m/metrics SIMPLE), obj (atom 42)
-          ^FunctionCounter counter (m/function-counter metrics "test" {:foo "bar"} obj deref)]
+          ^FunctionCounter counter (m/get-function-counter metrics "test" {:foo "bar"} obj deref)]
       (is (= 42.0 (.count counter)))
       (reset! obj 44)
       (is (= 44.0 (.count counter))))))
@@ -157,8 +157,8 @@
 (deftest test-gauge-metrics
   (testing "Gauge metrics registration and usage"
     (let [data (atom [1 2 3]), metrics (m/metrics SIMPLE),
-          gauge (m/defgauge metrics "test" {:foo "bar"} {} (count @data))
-          g1 (m/defgauge nil "test" {:foo "bar"} {} (count @data))]
+          gauge (m/defgauge [metrics "test" {:foo "bar"} {}] (count @data))
+          g1 (m/defgauge ["test" {:foo "bar"}] (count @data))]
       (is (nil? g1))
       (is (= 3.0 (.value gauge)))
       (swap! data conj 4)
@@ -172,8 +172,8 @@
 (deftest test-list-query-meters
   (let [metrics (m/metrics {:type :simple})
         lm (m/list-meters metrics)
-        qm1 (m/query-meters metrics "jvm.memory.used")
-        qm2 (m/query-meters metrics "jvm.memory.used" "area" "heap")]
+        qm1 (m/query-meters metrics "jvm.memory.used" {})
+        qm2 (m/query-meters metrics "jvm.memory.used" {"area" "heap"})]
     (is (vector? (:names lm)))
     (is (contains? (set (:names lm)) "jvm.memory.used"))
     (is (number? (-> qm1 :measurements first :value)))
@@ -190,7 +190,7 @@
              :replace-tags [{:from "foo", :to clojure.string/upper-case, :except ["baz" "bag"]}]
              :meter-filters [{:accept #(re-matches #"^foo" (.getName %))}, {:deny (constantly true)},
                              {:deny-unless false}, {:dist-stats dsc},
-                             {:raw-map identity}, {:raw-accept identity}]
+                             {:raw-map identity}, {:raw-filter identity}]
              :max-metrics 100,
              :tag-limits [{:prefix "jvm", :tag "foo", :max-vals 10, :on-limit {:deny true}}]
              :val-limits [{:prefix "jvm", :min 0, :max 10}]}]

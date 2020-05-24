@@ -11,7 +11,7 @@
     (java.time Duration)
     (java.util.concurrent TimeUnit)))
 
-(defn to-string [v]
+(defn- to-string [v]
   (cond
     (keyword? v) (name v)
     (string? v) v
@@ -19,8 +19,8 @@
 
 (defn- to-function [v-or-fn]
   (if (fn? v-or-fn)
-    (reify Function (apply [_ v] (v-or-fn v)))
-    (reify Function (apply [_ v] v))))
+    (reify Function (apply [_ v] (to-string (v-or-fn v))))
+    (reify Function (apply [_ v] (to-string v)))))
 
 (defn- to-predicate [v-or-fn]
   (if (fn? v-or-fn)
@@ -49,7 +49,7 @@
 (defn- reg-to-map [v]
   (if (map? v) v {:registry v}))
 
-(def ^:dynamic *metrics* nil)
+(defonce ^:dynamic *metrics* nil)
 
 (defn setup-metrics [metrics]
   (alter-var-root #'*metrics* (constantly metrics)))
@@ -68,9 +68,9 @@
 (defmethod create-registry :default [cfg]
   (throw (ex-info "Invalid metrics registry type" {:cfg cfg})))
 
-(def DEFAULT-JVM-METRICS [:classes :memory :gc :threads :jit :heap])
+(def ^:private DEFAULT-JVM-METRICS [:classes :memory :gc :threads :jit :heap])
 
-(defn setup-jvm-metrics [{:keys [registry] :as metrics} jvm-metrics]
+(defn- setup-jvm-metrics [{:keys [registry] :as metrics} jvm-metrics]
   (doseq [metric jvm-metrics]
     (case metric
       :classes (.bindTo (ClassLoaderMetrics.) registry)
@@ -81,9 +81,9 @@
       :heap (.bindTo (JvmHeapPressureMetrics.) registry)
       (throw (ex-info "Illegal JVM metric" {:metric metric, :allowed DEFAULT-JVM-METRICS})))))
 
-(def DEFAULT-OS-METRICS [:files :cpu :uptime])
+(def ^:private DEFAULT-OS-METRICS [:files :cpu :uptime])
 
-(defn setup-os-metrics [{:keys [registry]} os-metrics]
+(defn- setup-os-metrics [{:keys [registry]} os-metrics]
   (doseq [metric os-metrics]
     (case metric
       :files (.bindTo (FileDescriptorMetrics.) registry)
@@ -95,12 +95,12 @@
   (let [b (DistributionStatisticConfig/builder)]
     (when (some? histogram?) (.percentilesHistogram b histogram?))
     (when percentiles (.percentiles b (double-array percentiles)))
-    (when precision (.percentilePrecision b precision))
-    (when sla (.serviceLevelObjectives b (double-array sla)))
+    (when precision (.percentilePrecision b (int precision)))
+    (when sla (.serviceLevelObjectives b (double-array (map double sla))))
     (when min-val (.minimumExpectedValue b ^Double (double min-val)))
     (when max-val (.maximumExpectedValue b ^Double (double max-val)))
     (when expiry (.expiry b (to-duration expiry)))
-    (when buf-len (.bufferLength b buf-len))))
+    (when buf-len (.bufferLength b (int buf-len)))))
 
 (defn- meter-filter [{:keys [registry]} mf]
   (.meterFilter (.config registry) mf))
@@ -118,20 +118,20 @@
       :accept (MeterFilter/accept (to-predicate ffn))
       :deny (MeterFilter/deny (to-predicate ffn))
       :raw-map (reify MeterFilter  (^Meter$Id map [_ ^Meter$Id id] (ffn id)))
-      :raw-accept (reify MeterFilter (^MeterFilterReply accept [_ ^Meter$Id id]  (ffn id)))
-      :dist-stats (dist-stats-filter cfg)
+      :raw-filter (reify MeterFilter (^MeterFilterReply accept [_ ^Meter$Id id]  (ffn id)))
+      :dist-stats (dist-stats-filter ffn)
       (throw (ex-info "unknown filter mode" {:mode mode})))))
 
 (defn- setup-rename-tags [metrics rename-tags]
   (doseq [{:keys [prefix from to]} rename-tags]
-    (meter-filter metrics (MeterFilter/renameTag prefix from to))))
+    (meter-filter metrics (MeterFilter/renameTag (to-string prefix) (to-string from) (to-string to)))))
 
 (defn- setup-ignore-tags [metrics ignore-tags]
-  (when ignore-tags (meter-filter metrics (MeterFilter/ignoreTags (into-array String ignore-tags)))))
+  (when ignore-tags (meter-filter metrics (MeterFilter/ignoreTags (into-array String (map to-string ignore-tags))))))
 
 (defn- setup-replace-tags [metrics replace-tags]
-  (doseq [{:keys [from to except]} replace-tags]
-    (meter-filter metrics (MeterFilter/replaceTagValues from (to-function to) (into-array String except)))))
+  (doseq [{:keys [from procfn except]} replace-tags]
+    (meter-filter metrics (MeterFilter/replaceTagValues from (to-function procfn) (into-array String (map to-string except))))))
 
 (defn- setup-filters [metrics filters]
   (doseq [f filters] (meter-filter metrics (make-filter f))))
@@ -144,7 +144,7 @@
     (when max (meter-filter metrics (MeterFilter/maxExpected ^String prefix (double max))))
     (when min (meter-filter metrics (MeterFilter/minExpected ^String prefix (double min))))))
 
-(defn setup-common-tags [{:keys [registry]} tags]
+(defn- setup-common-tags [{:keys [registry]} tags]
   (when-not (empty? tags)
     (let [cfg (.config registry)]
       (.commonTags cfg (to-tags tags)))))
@@ -163,7 +163,7 @@
     (setup-ignore-tags ignore-tags)
     (setup-replace-tags replace-tags)
     (setup-filters meter-filters)
-    (setup-limits (select-keys cfg [:max-metrics :tag-limits]))))
+    (setup-limits (select-keys cfg [:max-metrics :tag-limits :val-limits]))))
 
 (defn close [{:keys [^MeterRegistry registry]}]
   (when registry
@@ -173,9 +173,11 @@
 
 (defmethod scrape :default [_] nil)
 
-(defn list-meters [{:keys [^MeterRegistry registry]}]
-  (let [names (into #{} (for [^Meter meter (.getMeters registry)] (.getName (.getId meter))))]
-    {:names (into [] names)}))
+(defn list-meters
+  ([] (list-meters *metrics*))
+  ([{:keys [^MeterRegistry registry]}]
+   (let [names (into #{} (for [^Meter meter (.getMeters registry)] (.getName (.getId meter))))]
+     {:names (into [] names)})))
 
 (defn- merge-stats [stats1 stats2]
   (if (= 1 (count stats1))
@@ -191,18 +193,24 @@
       (= name (.getName id))
       (or (nil? tagk) (first (for [^Tag t (.getTagsAsIterable id) :when (and (= tagk (.getKey t)) (= tagv (.getValue t)))] true))))))
 
-(defn query-meters [{:keys [^MeterRegistry registry]} name & [tagk tagv]]
-  (let [meters (for [^Meter m (.getMeters registry) :when (match-meter name tagk tagv m)] m)]
-    (when-not (empty? meters)
-      (let [^Meter meter (first meters), mdesc (.getDescription (.getId meter)), munit (.getBaseUnit (.getId meter)),
-            stats (for [^Meter m meters] (for [^Measurement s (.measure m)] [(.getStatistic s) (.getValue s) ]))
-            tags (for [^Meter m meters, ^Tag t (.getTagsAsIterable (.getId m)) ] [(.getKey t) (.getValue t)])]
-        (merge
-          {:name          (.getName (.getId meter)),
-           :measurements  (for [[s v] (reduce merge-stats stats)] {:statistic (str s), :value v})
-           :availableTags (into {} (for [[k v] (reduce acc-tags {} tags)] {k (vec v)}))}
-          (when mdesc {:description mdesc})
-          (when munit {:baseUnit munit}))))))
+(defn query-meters
+  ([name]
+   (query-meters *metrics* name {}))
+  ([name tags]
+   (query-meters *metrics* name tags))
+  ([{:keys [^MeterRegistry registry]} name tags]
+   (let [[tagk tagv] (first tags), tagk (when tagk (to-string tagk)), tagv (when tagv (to-string tagv)),
+         meters (for [^Meter m (.getMeters registry) :when (match-meter name tagk tagv m)] m)]
+     (when-not (empty? meters)
+       (let [^Meter meter (first meters), mdesc (.getDescription (.getId meter)), munit (.getBaseUnit (.getId meter)),
+             stats (for [^Meter m meters] (for [^Measurement s (.measure m)] [(.getStatistic s) (.getValue s)]))
+             tags (for [^Meter m meters, ^Tag t (.getTagsAsIterable (.getId m))] [(.getKey t) (.getValue t)])]
+         (merge
+           {:name (.getName (.getId meter)),
+            :measurements (for [[s v] (reduce merge-stats stats)] {:statistic (str s), :value v})
+            :availableTags (into {} (for [[k v] (reduce acc-tags {} tags)] {k (vec v)}))}
+           (when mdesc {:description mdesc})
+           (when munit {:baseUnit munit})))))))
 
 (defn get-timer
   ([name tags]
@@ -236,13 +244,13 @@
   `(let [f# (fn [] ~@body)]
      (if ~timer (.recordCallable ^Timer ~timer f#) (f#))))
 
-(defn- parse-timed-args
-  ([name tags] [*metrics* name tags {}])
+(defn- parse-meter-args
+  ([name tags] ['io.resonant.micrometer/*metrics* name tags {}])
   ([metrics name tags] [metrics name tags {}])
   ([metrics name tags options] [metrics name tags options]))
 
 (defmacro timed [args & body]
-  (let [[metrics name tags options] (apply parse-timed-args args)]
+  (let [[metrics name tags options] (apply parse-meter-args args)]
     `(let [timer# (get-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
        (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#)))))
 
@@ -294,7 +302,7 @@
      (if ~timer (.recordCallable ^LongTaskTimer ~timer f#) (f#))))
 
 (defmacro task-timed [args & body]
-  (let [[metrics name tags options] (apply parse-timed-args args)]
+  (let [[metrics name tags options] (apply parse-meter-args args)]
     `(let [timer# (get-task-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
        (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#)))))
 
@@ -353,10 +361,12 @@
    (let [counter (get-counter metrics name tags options)]
      (when counter (.increment counter n)))))
 
-(defn function-counter
+(defn get-function-counter
   ([name tags obj cfn]
-   (function-counter *metrics* name tags obj cfn))
+   (get-function-counter *metrics* name tags {} obj cfn))
   ([metrics name tags obj cfn]
+   (get-function-counter metrics name tags {} obj cfn))
+  ([metrics name tags {:keys [description base-unit]} obj cfn]
    (when-let [{:keys [metrics ^MeterRegistry registry]} metrics]
      (let [counter (get-in @metrics [name tags])]
        (cond
@@ -364,7 +374,12 @@
          (some? counter) (throw (ex-info "Metric already registered and is not function counter" {:name name, :tags tags, :metric counter}))
          :else
          (let [cntfn (reify ToDoubleFunction (applyAsDouble [_ v] (double (cfn v))))
-               counter (.counter (.more registry) name (to-tags tags) obj cntfn)]
+               counter (cond->
+                         (FunctionCounter/builder ^String name obj cntfn)
+                         (map? tags) (.tags (to-tags tags))
+                         (string? description) (.description description)
+                         (string? base-unit) (.baseUnit base-unit)
+                         true (.register registry))]
            (swap! metrics assoc-in [name tags] counter)
            counter))))))
 
@@ -391,8 +406,9 @@
            (swap! metrics assoc-in [name tags] gauge)
            gauge))))))
 
-(defmacro defgauge [metrics name tags options & body]
-  `(when ~metrics (get-gauge ~metrics ~name ~tags ~options (fn [] ~@body))))
+(defmacro defgauge [args & body]
+  (let [[metrics name tags options] (apply parse-meter-args args)]
+    `(get-gauge ~metrics ~name ~tags ~options (fn [] ~@body))))
 
 (defn get-summary
   ([name tags]
