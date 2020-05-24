@@ -676,7 +676,7 @@ In order to generate data for prometheus, use `scrape` multimethod:
 
 ```clojure
 ; implement this as URI in web handler instead of using println
-(println (scrape *metrics*))
+(println (scrape *registry*))
 ```
 
 Custom settings:

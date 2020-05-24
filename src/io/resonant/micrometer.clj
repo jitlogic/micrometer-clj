@@ -9,7 +9,8 @@
     (io.micrometer.core.instrument.config MeterFilter MeterFilterReply)
     (io.micrometer.core.instrument.distribution DistributionStatisticConfig)
     (java.time Duration)
-    (java.util.concurrent TimeUnit)))
+    (java.util.concurrent TimeUnit)
+    (java.io Closeable)))
 
 (defn- to-string [v]
   (cond
@@ -46,13 +47,25 @@
     :else
     (throw (ex-info "invalid duration value" {:duration d}))))
 
-(defn- reg-to-map [v]
-  (if (map? v) v {:registry v}))
+(defrecord Registry [type registry config components metrics]
+  Closeable
+  (close [_]
+    (when registry
+      (.close ^MeterRegistry registry))))
 
-(def REGISTRY-NS #{:appoptics :atlas :azure :cloudwatch :datadog :dynatrace :elastic :ganglia :graphite :humio
+(defn- to-registry
+  ([registry config]
+   (to-registry registry config nil))
+  ([registry config components]
+   (cond
+     (instance? Registry registry) registry
+     (instance? MeterRegistry registry) (Registry. (:type config) registry config components (atom {})))))
+
+
+(def REGISTRY-TYPES #{:appoptics :atlas :azure :cloudwatch :datadog :dynatrace :elastic :ganglia :graphite :humio
                    :influx :jmx :kairos :newrelic :opentsdb :prometheus :signalfx :stackdriver :statsd :wavefront})
 
-(defonce ^:dynamic *metrics* nil)
+(defonce ^:dynamic *registry* nil)
 
 (defmulti create-registry "Returns raw meter registry object from micrometer library." :type)
 
@@ -60,13 +73,12 @@
   (SimpleMeterRegistry.))
 
 (defmethod create-registry :composite [{:keys [components] :as config}]
-  (let [components (into {} (for [[k v] components] {k (assoc (reg-to-map (create-registry v)) :type (:type v), :config v)}))]
+  (let [components (into {} (for [[k v] components] {k (to-registry (create-registry v) v)}))]
     (when (= 0 (count components)) (throw (ex-info "Cannot create empty composite registry" {:config config})))
-    {:components components,
-     :registry (CompositeMeterRegistry. Clock/SYSTEM (map :registry (vals components)))}))
+    (to-registry (CompositeMeterRegistry. Clock/SYSTEM (map :registry (vals components))) config)))
 
 (defmethod create-registry :default [{:keys [type] :as cfg}]
-  (if (contains? REGISTRY-NS type)
+  (if (contains? REGISTRY-TYPES type)
     (do
       (require (symbol (str "io.resonant.micrometer." (name type))))
       (create-registry cfg))
@@ -106,7 +118,7 @@
     (when expiry (.expiry b (to-duration expiry)))
     (when buf-len (.bufferLength b (int buf-len)))))
 
-(defn- meter-filter [{:keys [registry]} mf]
+(defn- meter-filter [{:keys [^MeterRegistry registry]} mf]
   (.meterFilter (.config registry) mf))
 
 (defn- dist-stats-filter [{:keys [name name-re] :as cfg}]
@@ -148,18 +160,14 @@
     (when max (meter-filter metrics (MeterFilter/maxExpected ^String prefix (double max))))
     (when min (meter-filter metrics (MeterFilter/minExpected ^String prefix (double min))))))
 
-(defn- setup-common-tags [{:keys [registry]} tags]
+(defn- setup-common-tags [{:keys [^MeterRegistry registry]} tags]
   (when-not (empty? tags)
     (let [cfg (.config registry)]
       (.commonTags cfg (to-tags tags)))))
 
 (defn meter-registry [{:keys [rename-tags ignore-tags replace-tags meter-filters] :as cfg}]
   (doto
-    (assoc
-      (reg-to-map (create-registry cfg))
-      :config cfg,
-      :type (:type cfg),
-      :metrics (atom {}))
+    (to-registry (create-registry cfg) cfg)
     (setup-common-tags (:tags cfg {}))
     (setup-os-metrics (:os-metrics cfg DEFAULT-OS-METRICS))
     (setup-jvm-metrics (:jvm-metrics cfg DEFAULT-JVM-METRICS))
@@ -169,17 +177,13 @@
     (setup-filters meter-filters)
     (setup-limits (select-keys cfg [:max-metrics :tag-limits :val-limits]))))
 
-(defn close [{:keys [^MeterRegistry registry]}]
-  (when registry
-    (.close registry)))
-
 (defn configure [m]
   (alter-var-root
-    #'*metrics*
+    #'*registry*
     (constantly
       (cond
         (nil? m) nil
-        (instance? MeterRegistry (:registry m)) m
+        (instance? Registry m) m
         :else (meter-registry m)))))
 
 (defmulti scrape "Returns data as registry-specific data or nil when given registry type cannot be scraped" :type)
@@ -187,7 +191,7 @@
 (defmethod scrape :default [_] nil)
 
 (defn list-meters
-  ([] (list-meters *metrics*))
+  ([] (list-meters *registry*))
   ([{:keys [^MeterRegistry registry]}]
    (let [names (into #{} (for [^Meter meter (.getMeters registry)] (.getName (.getId meter))))]
      {:names (into [] names)})))
@@ -208,9 +212,9 @@
 
 (defn query-meters
   ([name]
-   (query-meters *metrics* name {}))
+   (query-meters *registry* name {}))
   ([name tags]
-   (query-meters *metrics* name tags))
+   (query-meters *registry* name tags))
   ([{:keys [^MeterRegistry registry]} name tags]
    (let [[tagk tagv] (first tags), tagk (when tagk (to-string tagk)), tagv (when tagv (to-string tagv)),
          meters (for [^Meter m (.getMeters registry) :when (match-meter name tagk tagv m)] m)]
@@ -227,7 +231,7 @@
 
 (defn get-timer
   ([name tags]
-   (get-timer *metrics* name tags {}))
+   (get-timer *registry* name tags {}))
   ([metrics name tags]
    (get-timer metrics name tags {}))
   ([metrics ^String name tags {:keys [description percentiles precision histogram? sla min-val max-val expiry buf-len]}]
@@ -258,13 +262,13 @@
      (if ~timer (.recordCallable ^Timer ~timer f#) (f#))))
 
 (defn- parse-meter-args
-  ([name tags] ['io.resonant.micrometer/*metrics* name tags {}])
+  ([name tags] ['io.resonant.micrometer/*registry* name tags {}])
   ([metrics name tags] [metrics name tags {}])
   ([metrics name tags options] [metrics name tags options]))
 
 (defmacro timed [args & body]
   (let [[metrics name tags options] (apply parse-meter-args args)]
-    `(let [timer# (get-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
+    `(let [timer# (get-timer (or ~metrics *registry*) ~name ~tags ~options), f# (fn [] ~@body)]
        (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#)))))
 
 (defn add-timer
@@ -272,7 +276,7 @@
    (when timer
      (.record ^Timer timer (to-duration duration))))
   ([name tags duration]
-   (when-let [timer (get-timer *metrics* name tags)]
+   (when-let [timer (get-timer *registry* name tags)]
      (.record ^Timer timer (to-duration duration))))
   ([metrics name tags duration]
    (when-let [timer (get-timer metrics name tags)]
@@ -283,7 +287,7 @@
 
 (defn get-task-timer
   ([name tags]
-   (get-task-timer *metrics* name tags))
+   (get-task-timer *registry* name tags))
   ([metrics name tags]
    (get-task-timer metrics name tags {}))
   ([metrics ^String name tags {:keys [description percentiles precision histogram? sla min-val max-val expiry buf-len]}]
@@ -316,12 +320,12 @@
 
 (defmacro task-timed [args & body]
   (let [[metrics name tags options] (apply parse-meter-args args)]
-    `(let [timer# (get-task-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
+    `(let [timer# (get-task-timer (or ~metrics *registry*) ~name ~tags ~options), f# (fn [] ~@body)]
        (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#)))))
 
 (defn get-function-timer
   ([name tags obj cfn tfn time-unit]
-   (get-function-timer *metrics* name tags {} obj cfn tfn time-unit))
+   (get-function-timer *registry* name tags {} obj cfn tfn time-unit))
   ([metrics name tags obj cfn tfn time-unit]
    (get-function-timer metrics name tags {} obj cfn tfn time-unit))
   ([metrics name tags {:keys [description]} obj cfn tfn time-unit]
@@ -343,7 +347,7 @@
 
 (defn get-counter
   ([name tags]
-   (get-counter *metrics* name tags {}))
+   (get-counter *registry* name tags {}))
   ([metrics name tags]
    (get-counter metrics name tags {}))
   ([metrics ^String name tags {:keys [description base-unit]}]
@@ -366,7 +370,7 @@
   ([^Counter counter n]
    (when counter (.increment counter n)))
   ([name tags n]
-   (add-counter *metrics* name tags n))
+   (add-counter *registry* name tags n))
   ([metrics name tags n]
    (let [counter (get-counter metrics name tags)]
      (when counter (.increment counter n))))
@@ -376,7 +380,7 @@
 
 (defn get-function-counter
   ([name tags obj cfn]
-   (get-function-counter *metrics* name tags {} obj cfn))
+   (get-function-counter *registry* name tags {} obj cfn))
   ([metrics name tags obj cfn]
    (get-function-counter metrics name tags {} obj cfn))
   ([metrics name tags {:keys [description base-unit]} obj cfn]
@@ -398,11 +402,11 @@
 
 (defn get-gauge
   ([name tags gfn]
-   (get-gauge *metrics* name tags {} gfn))
+   (get-gauge *registry* name tags {} gfn))
   ([metrics name tags gfn]
    (get-gauge metrics name tags {} gfn))
   ([metrics name tags {:keys [description base-unit strong-ref?]} gfn]
-   (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *metrics*)]
+   (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *registry*)]
      (let [tags (or tags {}), gauge (get-in @metrics [name tags])]
        (cond
          (instance? Gauge gauge) gauge
@@ -425,11 +429,11 @@
 
 (defn get-summary
   ([name tags]
-   (get-summary *metrics* name tags {}))
+   (get-summary *registry* name tags {}))
   ([metrics name tags]
    (get-summary metrics name tags {}))
   ([metrics name tags {:keys [description base-unit percentiles precision histogram? sla min-val max-val expiry buf-len scale]}]
-   (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *metrics*)]
+   (when-let [{:keys [metrics ^MeterRegistry registry]} (or metrics *registry*)]
      (let [tags (or tags {}), summary (get-in @metrics [name tags])]
        (cond
          (instance? DistributionSummary summary) summary
@@ -457,7 +461,7 @@
   ([^DistributionSummary summary v]
    (when summary (.record summary (double v))))
   ([name tags v]
-   (when-let [summary (get-summary *metrics* name tags)]
+   (when-let [summary (get-summary *registry* name tags)]
      (.record summary (double v))))
   ([metrics name tags v]
    (when-let [summary (get-summary metrics name tags)]

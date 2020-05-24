@@ -192,9 +192,9 @@
 
 (deftest test-configure
   (testing "Test direct metrics setup"
-    (let [m (m/meter-registry SIMPLE)]
+    (with-open [m (m/meter-registry SIMPLE)]
       (m/configure m)
-      (is (identical? m m/*metrics*))))
+      (is (identical? m m/*registry*))))
   (testing "Test in-flight metrics creation"
     (m/configure SIMPLE)
-    (is (instance? MeterRegistry (:registry m/*metrics*)))))
+    (is (instance? MeterRegistry (:registry m/*registry*)))))
