@@ -34,14 +34,14 @@
 (def SIMPLE {:type :simple, :jvm-metrics [], :os-metrics [], :tags {:location "WAW"}})
 
 (defmacro ccr [clazz type & {:as args}]
-  `(with-open [registry# (:registry (m/metrics (merge {:type ~type, :jvm-metrics [], :os-metrics [], :enabled? false} ~args)))]
+  `(with-open [registry# (:registry (m/meter-registry (merge {:type ~type, :jvm-metrics [], :os-metrics [], :enabled? false} ~args)))]
      (is (instance? ~clazz registry#))))
 
 (deftest test-create-registry
   (testing "Meter registries creation multimethod"
-    (is (instance? SimpleMeterRegistry (:registry (m/metrics SIMPLE))))
-    (is (instance? CompositeMeterRegistry (:registry (m/metrics {:type :composite, :components {:test1 SIMPLE :test2 SIMPLE}}))))
-    (is (instance? PrometheusMeterRegistry (:registry (m/metrics {:type :prometheus :jvm-metrics [], :os-metrics []}))))
+    (is (instance? SimpleMeterRegistry (:registry (m/meter-registry SIMPLE))))
+    (is (instance? CompositeMeterRegistry (:registry (m/meter-registry {:type :composite, :components {:test1 SIMPLE :test2 SIMPLE}}))))
+    (is (instance? PrometheusMeterRegistry (:registry (m/meter-registry {:type :prometheus :jvm-metrics [], :os-metrics []}))))
     (ccr ElasticMeterRegistry :elastic)
     (ccr OpenTSDBMeterRegistry :opentsdb)
     (ccr GraphiteMeterRegistry :graphite)
@@ -62,7 +62,7 @@
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."
-    (let [metrics (m/metrics SIMPLE), tcnt (atom 0)
+    (let [metrics (m/meter-registry SIMPLE), tcnt (atom 0)
           ^Timer timer (m/get-timer metrics "test" {:foo "bar"})]
       ; test timer (directly used)
       (is (= 42 (m/with-timer timer (Thread/sleep 2) 42)))
@@ -79,14 +79,14 @@
       (m/timed ["test" {:foo "bar"}] (swap! tcnt inc))
       (is (= 2 (.count timer)))
       (is (= 2 @tcnt))
-      (m/inc-timer timer 10)
+      (m/add-timer timer 10)
       (is (= 3 (.count timer)))
-      (m/inc-timer metrics "test" {:foo "bar"} 10)
+      (m/add-timer metrics "test" {:foo "bar"} 10)
       (is (= 4 (.count timer))))))
 
 (deftest test-long-task-timer-metrics
   (testing "Long task timer registration and usage"
-    (let [metrics (m/metrics SIMPLE), tcnt (atom 0),
+    (let [metrics (m/meter-registry SIMPLE), tcnt (atom 0),
           ^LongTaskTimer timer (m/get-task-timer metrics "test" {:foo "bar"})]
       (is (= 42)
         (m/with-task-timer timer
@@ -111,7 +111,7 @@
 
 (deftest test-function-timer-metrics
   (testing "Function timer registration and usage"
-    (let [metrics (m/metrics SIMPLE), obj (atom 2),
+    (let [metrics (m/meter-registry SIMPLE), obj (atom 2),
           ^FunctionTimer timer (m/get-function-timer metrics "test" {:foo "bar"} {:description "TEST"} obj deref deref :MILLISECONDS)]
       (is (= 2.0 (.count timer)))
       (is (= 2.0 (.totalTime timer TimeUnit/MILLISECONDS)))
@@ -121,20 +121,20 @@
 
 (deftest test-counter-metrics
   (testing "Counter metrics registration and usage"
-    (let [metrics (m/metrics SIMPLE),
+    (let [metrics (m/meter-registry SIMPLE),
           ^Counter counter (m/get-counter metrics "test" {:foo "bar"})]
-      (m/inc-counter counter 1.0)
+      (m/add-counter counter 1.0)
       (is (= 1.0 (.count counter)))
-      (m/inc-counter nil 1.0)
+      (m/add-counter nil 1.0)
       (is (= 1.0 (.count counter)))
-      (m/inc-counter metrics "test" {:foo "bar"} 1.0)
+      (m/add-counter metrics "test" {:foo "bar"} 1.0)
       (is (= 2.0 (.count counter)))
-      (m/inc-counter nil "test" {:foo "bar"} 1.0)
+      (m/add-counter nil "test" {:foo "bar"} 1.0)
       (is (= 2.0 (.count counter))))))
 
 (deftest test-tracking-counter
   (testing "Tracking metrics registration and usage"
-    (let [metrics (m/metrics SIMPLE), obj (atom 42)
+    (let [metrics (m/meter-registry SIMPLE), obj (atom 42)
           ^FunctionCounter counter (m/get-function-counter metrics "test" {:foo "bar"} obj deref)]
       (is (= 42.0 (.count counter)))
       (reset! obj 44)
@@ -142,7 +142,7 @@
 
 (deftest test-gauge-metrics
   (testing "Gauge metrics registration and usage"
-    (let [data (atom [1 2 3]), metrics (m/metrics SIMPLE),
+    (let [data (atom [1 2 3]), metrics (m/meter-registry SIMPLE),
           gauge (m/defgauge [metrics "test" {:foo "bar"} {}] (count @data))
           g1 (m/defgauge ["test" {:foo "bar"}] (count @data))]
       (is (nil? g1))
@@ -152,11 +152,11 @@
 
 (deftest test-jvm-os-metrics
   (testing "Register standard JVM and OS metrics"
-    (let [{:keys [^MeterRegistry registry]} (m/metrics {:type :simple})]
+    (let [{:keys [^MeterRegistry registry]} (m/meter-registry {:type :simple})]
       (is (< 32 (.size (.getMeters registry)))))))
 
 (deftest test-list-query-meters
-  (let [metrics (m/metrics {:type :simple})
+  (let [metrics (m/meter-registry {:type :simple})
         lm (m/list-meters metrics)
         qm1 (m/query-meters metrics "jvm.memory.used" {})
         qm2 (m/query-meters metrics "jvm.memory.used" {"area" "heap"})]
@@ -180,19 +180,19 @@
              :max-metrics 100,
              :tag-limits [{:prefix "jvm", :tag "foo", :max-vals 10, :on-limit {:deny true}}]
              :val-limits [{:prefix "jvm", :min 0, :max 10}]}]
-    (is (some? (:registry (m/metrics cfg))))))
+    (is (some? (:registry (m/meter-registry cfg))))))
 
 (deftest test-distribution-summary
-  (let [metrics (m/metrics {:type :simple})
+  (let [metrics (m/meter-registry {:type :simple})
         ^DistributionSummary summary (m/get-summary metrics "test" {:foo "bar"})]
-    (m/inc-summary summary 4)
-    (m/inc-summary metrics "test" {:foo "bar"} 4)
+    (m/add-summary summary 4)
+    (m/add-summary metrics "test" {:foo "bar"} 4)
     (is (= 2 (.count summary)))
     (is (= 8.0 (.totalAmount summary)))))
 
 (deftest test-configure
   (testing "Test direct metrics setup"
-    (let [m (m/metrics SIMPLE)]
+    (let [m (m/meter-registry SIMPLE)]
       (m/configure m)
       (is (identical? m m/*metrics*))))
   (testing "Test in-flight metrics creation"

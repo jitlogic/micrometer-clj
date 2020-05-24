@@ -88,16 +88,16 @@ It is also possible to feed timer manually - this is useful when duration is alr
 
 ```clojure
 ; using already created timer
-(m/inc-timer my-timer (- t1 t0))
+(m/add-timer my-timer (- t1 t0))
 
 ; will create timer in global registry
-(m/inc-timer "other.timer" {:baz "BAG"} some-duration)
+(m/add-timer "other.timer" {:baz "BAG"} some-duration)
 
 ; will use supplied registry
-(m/inc-timer my-registry "other.timer" {:baz "BAG"} some-duration)
+(m/add-timer my-registry "other.timer" {:baz "BAG"} some-duration)
 
 ; as above, with custom options
-(m/inc-timer my-registry "other.timer" {:baz "BAG"} {:description "Some Duration"} some-duration)
+(m/add-timer my-registry "other.timer" {:baz "BAG"} {:description "Some Duration"} some-duration)
 ```
 
 Supplied duration can be either number (milliseconds) or `java.time.Duration` object.
@@ -183,23 +183,23 @@ Counters are created using `get-counter` function:
 (def my-counter3 (m/get-counter my-registry "some.counter" {:baz "BAG"} {:description "Incoming traffic", :base-unit "B"}))
 ```
 
-Counters can be used by `inc-counter` function:
+Counters can be used by `add-counter` function:
 
 ```clojure
 ; uses previously created counter
-(m/inc-counter my-counter 42)
+(m/add-counter my-counter 42)
 
 ; will use global registry; note that counter is represented as double and can be incremented fraction at a time
-(m/inc-counter "other.counter" {:foo "BAR"} 0.42)
+(m/add-counter "other.counter" {:foo "BAR"} 0.42)
 
 ; will use supplied registry; 
-(m/inc-counter my-registry "other.counter" {:foo "BAR"} 0.42)
+(m/add-counter my-registry "other.counter" {:foo "BAR"} 0.42)
 
 ; will set 
-(m/inc-counter my-registry "other.counter" {:foo "BAR"} {:description "Storage utilization", :base-unit "MB"} 0.42)
+(m/add-counter my-registry "other.counter" {:foo "BAR"} {:description "Storage utilization", :base-unit "MB"} 0.42)
 ```
 
-Two variants of `inc-counter` function can dynamically create necessary counters. 
+Two variants of `add-counter` function can dynamically create necessary counters. 
 
 
 ## Function counters
@@ -267,12 +267,12 @@ Distribution summaries maintain sample distributions of events and implement som
 (def my-summary3 (get-summary "some.summary" {:foo "BAR"} {:description "Execution times"}))
 ```
 
-Distriubtion summaries can be fed using `inc-summary` function:
+Distriubtion summaries can be fed using `add-summary` function:
 
 ```clojure
-(inc-summary my-summary1 42)
-(inc-summary "some.summary" {:foo "BAR"} 24)
-(inc-summary my-registry "some.summary" {:foo "BAR"} 24)
-(inc-summary my-registry "some.summary" {:foo "BAR"} {:description "FizzBuzz"} 24)
+(add-summary my-summary1 42)
+(add-summary "some.summary" {:foo "BAR"} 24)
+(add-summary my-registry "some.summary" {:foo "BAR"} 24)
+(add-summary my-registry "some.summary" {:foo "BAR"} {:description "FizzBuzz"} 24)
 ```
 

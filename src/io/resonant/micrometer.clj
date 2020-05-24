@@ -153,7 +153,7 @@
     (let [cfg (.config registry)]
       (.commonTags cfg (to-tags tags)))))
 
-(defn metrics [{:keys [rename-tags ignore-tags replace-tags meter-filters] :as cfg}]
+(defn meter-registry [{:keys [rename-tags ignore-tags replace-tags meter-filters] :as cfg}]
   (doto
     (assoc
       (reg-to-map (create-registry cfg))
@@ -180,7 +180,7 @@
       (cond
         (nil? m) nil
         (instance? MeterRegistry (:registry m)) m
-        :else (metrics m)))))
+        :else (meter-registry m)))))
 
 (defmulti scrape "Returns data as registry-specific data or nil when given registry type cannot be scraped" :type)
 
@@ -267,7 +267,7 @@
     `(let [timer# (get-timer (or ~metrics *metrics*) ~name ~tags ~options), f# (fn [] ~@body)]
        (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#)))))
 
-(defn inc-timer
+(defn add-timer
   ([timer duration]
    (when timer
      (.record ^Timer timer (to-duration duration))))
@@ -362,11 +362,11 @@
            (swap! metrics assoc-in [name tags] counter)
            counter))))))
 
-(defn inc-counter
+(defn add-counter
   ([^Counter counter n]
    (when counter (.increment counter n)))
   ([name tags n]
-   (inc-counter *metrics* name tags n))
+   (add-counter *metrics* name tags n))
   ([metrics name tags n]
    (let [counter (get-counter metrics name tags)]
      (when counter (.increment counter n))))
@@ -453,7 +453,7 @@
            (swap! metrics assoc-in [name tags] summary)
            summary))))))
 
-(defn inc-summary
+(defn add-summary
   ([^DistributionSummary summary v]
    (when summary (.record summary (double v))))
   ([name tags v]

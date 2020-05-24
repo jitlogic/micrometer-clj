@@ -9,54 +9,30 @@ in-memory meter registry:
 
 ```clojure
 (ns example 
-  (:require [io.resonant.micrometer :refer :all]))
+  (:require [io.resonant.micrometer :as m]))
 
-(def registry (metrics {:type :simple, :tags {:foo "BAR"}}))
+(m/configure {:type :simple, :tags {:foo "BAR"}})
 
 (defn -main [& args]
-  (timed registry "some.metric" {:baz "BAG"}
+  (m/timed ["some.metric" {:baz "BAG"}]
     (Thread/sleep 3000)))
 ```
 
-Registry implementation and parameters are chosen solely from configuration data, following keys can be set:
-
-* `:type` - registry implementation: `:simple`, `:prometheus`, `:composite`;
-
-* `:jvm-metrics` - list of standard JVM metrics to be added: `:classes`, `:memory`, `:gc`, `:threads`, `:jit`, `:heap`
-are actually available, if parameter not provided all will be included by default;  
-
-* `:os-metrics` - list of OS-related metrics to be added: `:files`, `:cpu`, `:uptime` are actually available, if 
-parameter not provided all will be included by default;
-
-* `:tags` - tags that will be added to all meters in this registry (map keywords -> strings);
-
-
-## Prometheus meter registry
-
-Prometheus meter registry has `:type` set to `:prometheus`. It accepts two additional configuration parameters:
-
-* `:step` - step size (reporting frequency);
-
-Note that prometheus registry will not expose metrics by itself, it os up to hosting application to expose endpoint
-where data will scraped. There is `scrape` function that will return formatted data to be returned:
+When using global meter registry is not desired, it is possible to declare own registry using `metrics` function and
+create custom meters using `get-*` functions:
 
 ```clojure
-(println (scrape registry))
-```  
-
-## Composite meter registry
-
-This one can be used to compose multiple registries into a single one. Configuration looks like this:
-
-```clojure
-{:type :composite
- :components {
-   :foo {:type :simple}
-   :bar {:type :prometheus}
- }
-}
-```
-
+(let [registry (m/meter-registry {:type :prometheus})
+      timer    (m/get-timer registry "frobnication.time" {:location "WAW"} 
+                {:description "Frobnication request handling"})
+      errors   (m/get-counter registry "frobnication.errors" {:location "WAW"} 
+                {:description "Number of frobnication errors", :base-unit "err"})]
+  (m/with-timer timer 
+    (try
+      (frobnicate)
+    (catch Exception _
+      (m/add-counter errors 1)))))
+``` 
 
 ## Listing and querying meters
 
