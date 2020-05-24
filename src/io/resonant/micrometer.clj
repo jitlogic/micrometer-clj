@@ -173,7 +173,7 @@
   (when registry
     (.close registry)))
 
-(defn setup-metrics [m]
+(defn configure [m]
   (alter-var-root
     #'*metrics*
     (constantly

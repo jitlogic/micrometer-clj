@@ -9,12 +9,12 @@ in-memory meter registry:
 
 ```clojure
 (ns example 
-  (:require [io.resonant.micrometer :as m]))
+  (:require [io.resonant.micrometer :refer :all]))
 
-(def registry (m/metrics {:type :simple, :tags {:foo "BAR"}}))
+(def registry (metrics {:type :simple, :tags {:foo "BAR"}}))
 
 (defn -main [& args]
-  (m/timed registry "some.metric" {:baz "BAG"}
+  (timed registry "some.metric" {:baz "BAG"}
     (Thread/sleep 3000)))
 ```
 
@@ -41,7 +41,7 @@ Note that prometheus registry will not expose metrics by itself, it os up to hos
 where data will scraped. There is `scrape` function that will return formatted data to be returned:
 
 ```clojure
-(println (m/scrape registry))
+(println (scrape registry))
 ```  
 
 ## Composite meter registry

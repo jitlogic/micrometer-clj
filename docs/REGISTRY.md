@@ -3,14 +3,14 @@
 In `micrometer-clj` metrics registry is created using `metrics` function, for example:
 
 ```clojure
-(def METRICS (metrics {:type :simple}))
+(def my-metrics (metrics {:type :simple}))
 ```
 
 User can now refer to `METRICS` when calling other functions or setup newly created registry as global:
 
 ```clojure
-(setup-metrics METRICS)                       ; use previously declared function
-(setup-metrics (metrics {:type :simple}))   ; if you don't want to declare registry as a variable somewhere
+(configure my-metrics)        ; use previously declared function
+(configure {:type :simple})   ; if you don't want to declare registry as a variable somewhere
 ```
 Meter registry creation function accepts configuration map with following common keys:
 
@@ -206,8 +206,8 @@ with any specific monitoring system. It can be queried via
 Creating simple registry:
 
 ```clojure
-(setup-metrics 
-  (metrics {:type :simple}))
+(configure 
+  {:type :simple})
 ```
 
 ## Composite registry
@@ -215,12 +215,11 @@ Creating simple registry:
 Composite registry binds several registries together and presents them as single entity: 
 
 ```clojure
-(setup-metrics
-  (metrics 
-    {:type :composite,
-     :components {
-       :local {:type :simple},
-       :cloud {:type :prometheus}}}))  
+(configure 
+  {:type :composite,
+   :components {
+     :local {:type :simple},
+     :cloud {:type :prometheus}}})  
 ```
 
 All component registries will be accessible via `:components` key of returned object.
@@ -233,11 +232,10 @@ Sends metric data to AppOptics service.
 Add POM dependency: `[io.micrometer/micrometer-registry-appoptics "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :appoptics
-     :api-token "79d84fcf-ef37-4297-9c98-9e912fed7556"
-     :host-tag "my-app.svc.kubernetes.local" }))
+(configure
+  {:type :appoptics
+   :api-token "79d84fcf-ef37-4297-9c98-9e912fed7556"
+   :host-tag "my-app.svc.kubernetes.local" })
 ```
 
 It is a push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -261,11 +259,10 @@ Sends metrics to Netflix Atlas server.
 Add POM dependency: `[io.micrometer/micrometer-registry-atlas "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :atlas,
-     :auto-start? true,
-     :url "http://atlas.svc.kubernetes.local:7101/api/v1/publish"}))
+(configure
+  {:type :atlas,
+   :auto-start? true,
+   :url "http://atlas.svc.kubernetes.local:7101/api/v1/publish"})
 ```
 
 It is a push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`  and `:batch-size`. 
@@ -310,10 +307,9 @@ properties, so here we set only instrumentation key for monitored application:
 Add POM dependency: `[io.micrometer/micrometer-registry-azure "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :azure
-     :instrumentation-key "25678f44-b958-466e-9ccc-5a622484620b"}))
+(configure
+  {:type :azure
+   :instrumentation-key "25678f44-b958-466e-9ccc-5a622484620b"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -332,8 +328,8 @@ Sends data to Amazon Cloudwatch service. As part of configuration it needs Cloud
 Add POM dependency: `[io.micrometer/micrometer-registry-cloudwatch2 "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics {:type :cloudwatch}))
+(configure
+  {:type :cloudwatch})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -351,11 +347,10 @@ Sends data to Datadog service.
 Add POM dependency: `[io.micrometer/micrometer-registry-datadog "1.5.1"]`
 
 ```clojure
-(setup-metrics 
-  (metrics
-    {:type :datadog
-     :api-key "f7cf4d9d-0755-4e5b-bc3b-fa0b54f14ea6"
-     :application-key "my-app.svc.mycompany.com"}))
+(configure 
+  {:type :datadog
+   :api-key "f7cf4d9d-0755-4e5b-bc3b-fa0b54f14ea6"
+   :application-key "my-app.svc.mycompany.com"})
 ```
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
 `:read-timeout` and `:batch-size`. 
@@ -380,12 +375,11 @@ Sends data to Dynatrace system.
 Add POM dependency: `[io.micrometer/micrometer-registry-dynatrace "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :dynatrace
-     :url "https://url-to-dynatrace-collector"
-     :api-token "abcdefjhij1234567890"
-     :device-id "..."}))
+(configure
+  {:type :dynatrace
+   :url "https://url-to-dynatrace-collector"
+   :api-token "abcdefjhij1234567890"
+   :device-id "..."})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -411,13 +405,12 @@ Sends data to Elastic Search server.
 Add POM dependency: `[io.micrometer/micrometer-registry-elastic "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :elastic
-     :url "https://elastic.svc.cloud.mycomapny.com:9200"
-     :index "metrics"
-     :username "micrometer"
-     :password "seCR3t"}))
+(configure
+  {:type :elastic
+   :url "https://elastic.svc.cloud.mycomapny.com:9200"
+   :index "metrics"
+   :username "micrometer"
+   :password "seCR3t"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -451,11 +444,10 @@ Sends data to Ganglia over UDP.
 Add POM dependency: `[io.micrometer/micrometer-registry-ganglia "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :ganglia
-     :host "224.2.3.4"
-     :port 8649}))
+(configure
+  {:type :ganglia
+   :host "224.2.3.4"
+   :port 8649})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -481,10 +473,9 @@ Sends data to Graphite server.
 Add POM dependency: `[io.micrometer/micrometer-registry-graphite "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :graphite
-     :host "graphite.intranet.mycompany.com"}))
+(configure
+  {:type :graphite
+   :host "graphite.intranet.mycompany.com"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`;
@@ -513,10 +504,9 @@ Sends metrics to Humio cloud service.
 Add POM dependency: `[io.micrometer/micrometer-registry-humio "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :humio
-     :api-token "44f575d5-b591-47c7-a01e-71d6771280b6"}))
+(configure
+  {:type :humio
+   :api-token "44f575d5-b591-47c7-a01e-71d6771280b6"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -538,12 +528,11 @@ Sends metrics to InfluxDB time series database.
 Add POM dependency: `[io.micrometer/micrometer-registry-influx "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :influx
-     :url "http://influx.svc.kubernetes.local:8086"
-     :username "metrics"
-     :password "s3CR3t"}))
+(configure
+  {:type :influx
+   :url "http://influx.svc.kubernetes.local:8086"
+   :username "metrics"
+   :password "s3CR3t"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -580,10 +569,9 @@ Presents data via JMX in local MBean server.
 Add POM dependency: `[io.micrometer/micrometer-registry-jmx "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :jmx
-     :domain "micrometer"}))
+(configure
+  {:type :jmx
+   :domain "micrometer"})
 ```
 
 Custom settings:
@@ -600,12 +588,11 @@ Sends metrics to Kairos monitoring system.
 Add POM dependency: `[io.micrometer/micrometer-registry-jmx "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :kairos
-     :url "http://kairos.svc.kubernetes.local:8080/api/v1/datapoints"
-     :username "metrics"
-     :password "seCR3t"}))
+(configure
+  {:type :kairos
+   :url "http://kairos.svc.kubernetes.local:8080/api/v1/datapoints"
+   :username "metrics"
+   :password "seCR3t"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -625,11 +612,10 @@ Sends metrics to New Relic service.
 Add POM dependency: `[io.micrometer/micrometer-registry-newrelic "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :newrelic
-     :account-id "123456"
-     :api-key "9a4186e2-7fd2-48ec-a9a3-c2b29b5fff27"})) 
+(configure
+  {:type :newrelic
+   :account-id "123456"
+   :api-key "9a4186e2-7fd2-48ec-a9a3-c2b29b5fff27"}) 
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -657,11 +643,10 @@ Sends metrics to OpenTSDB server.
 Add POM dependency: `[io.micrometer/micrometer-registry-opentsdb "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:url "http://opentsdb.intranet.mycompany.com:4242/api/put"
-     :username "metrics"
-     :password "s3CR3t"}))
+(configure
+  {:url "http://opentsdb.intranet.mycompany.com:4242/api/put"
+   :username "metrics"
+   :password "s3CR3t"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -683,8 +668,8 @@ not serve HTTP endpoint for Prometheus scrapper, it provides `scrape` multimetho
 used by application developer who is responsible for publishing this data via http(s).
 
 ```clojure
-(setup-metrics
-  (metrics {:type :prometheus}))
+(configure
+  {:type :prometheus})
 ```
 
 In order to generate data for prometheus, use `scrape` multimethod:
@@ -713,11 +698,10 @@ Sends metrics to SignalFX service.
 Add POM dependency: `[io.micrometer/micrometer-registry-signalfx "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :signalfx
-     :access-token "3d0146bb-56e5-46c0-8768-64508e2914fb"
-     :source "myapp"}))
+(configure
+  {:type :signalfx
+   :access-token "3d0146bb-56e5-46c0-8768-64508e2914fb"
+   :source "myapp"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -739,11 +723,10 @@ Sends metrics to Google Stackdriver service.
 Add POM dependency: `[io.micrometer/micrometer-registry-stackdriver "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :stackdriver
-     :project-id "myapp"
-     :credentials "/tmp/credentials.dat"}))
+(configure
+  {:type :stackdriver
+   :project-id "myapp"
+   :credentials "/tmp/credentials.dat"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 
@@ -767,11 +750,10 @@ Sends metrics to statsd daemon
 Add POM dependency: `[io.micrometer/micrometer-registry-statsd "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :statsd
-     :host "statsd.svc.kubernetes.local"
-     :port 8125}))
+(configure
+ {:type :statsd
+   :host "statsd.svc.kubernetes.local"
+   :port 8125})
 ```
 
 Custom settings:
@@ -808,11 +790,10 @@ Sends metrics to wavefront service.
 Add POM dependency: `[io.micrometer/micrometer-registry-wavefront "1.5.1"]`
 
 ```clojure
-(setup-metrics
-  (metrics
-    {:type :wavefront,
-     :api-token "e6cb63cd-5b14-4bd4-9486-8ff6cfddd830",
-     :source "myapp"}))
+(configure
+  {:type :wavefront,
+   :api-token "e6cb63cd-5b14-4bd4-9486-8ff6cfddd830",
+   :source "myapp"})
 ```
 
 It is push registry and accepts common settings: `:step`, `:enabled?`, `:num-threads`, `:connect-timeout`, 

@@ -27,7 +27,7 @@
     (io.micrometer.kairos KairosMeterRegistry)
     (io.micrometer.signalfx SignalFxMeterRegistry)))
 
-(defn setup-fixture [f] (f) (m/setup-metrics nil))
+(defn setup-fixture [f] (f) (m/configure nil))
 
 (use-fixtures :each setup-fixture)
 
@@ -190,11 +190,11 @@
     (is (= 2 (.count summary)))
     (is (= 8.0 (.totalAmount summary)))))
 
-(deftest test-setup-metrics
+(deftest test-configure
   (testing "Test direct metrics setup"
     (let [m (m/metrics SIMPLE)]
-      (m/setup-metrics m)
+      (m/configure m)
       (is (identical? m m/*metrics*))))
   (testing "Test in-flight metrics creation"
-    (m/setup-metrics SIMPLE)
+    (m/configure SIMPLE)
     (is (instance? MeterRegistry (:registry m/*metrics*)))))
