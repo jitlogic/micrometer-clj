@@ -14,12 +14,13 @@
       (applicationKey [_] (:application-key cfg))
       (hostTag [_] (:host-tag cfg "instance"))
       (uri [_] (:url cfg "https://api.datadoghq.com"))
-      (descriptions [_] (:descriptions cfg true))
+      (descriptions [_] (:descriptions? cfg true))
       StepRegistryConfig
       (step [_] (to-duration (:step cfg 60000)))
       (enabled [_] (:enabled? cfg true))
       (numThreads [_] (:num-threads cfg 2))
       (connectTimeout [_] (to-duration (:connect-timeout cfg 1000)))
-      (readTimeout [_] (to-duration (:read-timeout cfg 10000))))
+      (readTimeout [_] (to-duration (:read-timeout cfg 10000)))
+      (batchSize [_] (:batch-size cfg 10000)))
     (Clock/SYSTEM)))
 

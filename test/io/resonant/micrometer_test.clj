@@ -36,7 +36,7 @@
 (deftest test-create-registry
   (testing "Meter registries creation multimethod"
     (is (instance? SimpleMeterRegistry (:registry (m/metrics SIMPLE))))
-    (is (instance? CompositeMeterRegistry (:registry (m/metrics {:type :composite, :configs {:test1 SIMPLE :test2 SIMPLE}}))))
+    (is (instance? CompositeMeterRegistry (:registry (m/metrics {:type :composite, :components {:test1 SIMPLE :test2 SIMPLE}}))))
     (is (instance? PrometheusMeterRegistry (:registry (m/metrics {:type :prometheus :jvm-metrics [], :os-metrics []}))))
     (ccr ElasticMeterRegistry :elastic)
     (ccr OpenTSDBMeterRegistry :opentsdb)

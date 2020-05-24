@@ -11,7 +11,7 @@
     (reify
       JmxConfig
       (get [_ _] nil)
-      (domain [_] (:domain cfg))
+      (domain [_] (:domain cfg "micrometer"))
       DropwizardConfig
       (step [_] (to-duration (:step cfg 60000))))
     (Clock/SYSTEM)))

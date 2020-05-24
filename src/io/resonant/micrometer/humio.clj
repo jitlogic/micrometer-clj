@@ -18,5 +18,6 @@
       (enabled [_] (:enabled? cfg true))
       (numThreads [_] (:num-threads cfg 2))
       (connectTimeout [_] (to-duration (:connect-timeout cfg 1000)))
-      (readTimeout [_] (to-duration (:read-timeout cfg 10000))))
+      (readTimeout [_] (to-duration (:read-timeout cfg 10000)))
+      (batchSize [_] (:batch-size cfg 10000)))
     (Clock/SYSTEM)))

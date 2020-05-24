@@ -4,7 +4,8 @@
   (:import
     (io.micrometer.cloudwatch2 CloudWatchMeterRegistry CloudWatchConfig)
     (io.micrometer.core.instrument.push PushRegistryConfig)
-    (io.micrometer.core.instrument Clock)))
+    (io.micrometer.core.instrument Clock)
+    (software.amazon.awssdk.services.cloudwatch CloudWatchAsyncClient)))
 
 (defmethod create-registry :cloudwatch [cfg]
   (CloudWatchMeterRegistry.
@@ -21,4 +22,4 @@
       (connectTimeout [_] (to-duration (:connect-timeout cfg 1000)))
       (readTimeout [_] (to-duration (:read-timeout cfg 10000))))
     (Clock/SYSTEM)
-    (:cloudwatch-client cfg)))
+    (CloudWatchAsyncClient/create)))

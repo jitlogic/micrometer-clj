@@ -62,8 +62,8 @@
 (defmethod create-registry :simple [_]
   (SimpleMeterRegistry.))
 
-(defmethod create-registry :composite [{:keys [configs] :as config}]
-  (let [components (into {} (for [[k v] configs] {k (assoc (reg-to-map (create-registry v)) :type (:type v), :config v)}))]
+(defmethod create-registry :composite [{:keys [components] :as config}]
+  (let [components (into {} (for [[k v] components] {k (assoc (reg-to-map (create-registry v)) :type (:type v), :config v)}))]
     (when (= 0 (count components)) (throw (ex-info "Cannot create empty composite registry" {:config config})))
     {:components components,
      :registry (CompositeMeterRegistry. Clock/SYSTEM (map :registry (vals components)))}))

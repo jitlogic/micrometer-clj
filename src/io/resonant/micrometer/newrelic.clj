@@ -10,7 +10,7 @@
     (reify
       NewRelicConfig
       (get [_ _] nil)
-      (meterNameEventTypeEnabled [_] (:meter-name-event-type-enabled cfg false))
+      (meterNameEventTypeEnabled [_] (:meter-name-event-type-enabled? cfg false))
       (eventType [_] (:event-type cfg "MicrometerSample"))
       (clientProviderType [_] (ClientProviderType/valueOf (.toUpperCase (name (:client-provider-type cfg :INSIGHTS_API)))))
       (apiKey [_] (:api-key cfg))

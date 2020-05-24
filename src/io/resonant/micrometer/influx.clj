@@ -9,10 +9,10 @@
   (InfluxMeterRegistry.
     (reify
       InfluxConfig
-      (db [_] (:db cfg "resonant"))
+      (db [_] (:db cfg "metrics"))
       (consistency [_] (InfluxConsistency/valueOf (.toUpperCase (name (:consistency cfg :ONE)))))
-      (userName [_] (:username cfg "resonant"))
-      (password [_] (:password cfg "resonant"))
+      (userName [_] (:username cfg "metrics"))
+      (password [_] (:password cfg "metrics"))
       (retentionPolicy [_] (:retention-policy cfg))
       (retentionDuration [_] (:retention-duration cfg))
       (retentionReplicationFactor [_] (:retention-replication-factor cfg))
