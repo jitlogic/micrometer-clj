@@ -27,7 +27,7 @@ create custom meters using `get-*` functions:
                 {:description "Frobnication request handling"})
       errors   (m/get-counter registry "frobnication.errors" {:location "WAW"} 
                 {:description "Number of frobnication errors", :base-unit "err"})]
-  (m/with-timer timer 
+  (m/timed [timer] 
     (try
       (frobnicate)
     (catch Exception _
@@ -39,14 +39,14 @@ create custom meters using `get-*` functions:
 Function `list-meters` will return names of all meters in a registry:
 
 ```clojure
-(list-meters)  ; there is also variant that accepts "registry" parameter
+(m/list-meters)  ; there is also variant that accepts "registry" parameter
 {:names ["process.uptime" "jvm.gc.max.data.size" "jvm.threads.peak" ... "jvm.threads.daemon"]}
 ```
 
 In order to query specific meter use `query-meters` function:
 
 ```clojure
-(query-meters "jvm.memory.used") ; there is also variant that accepts "registry" parameter
+(m/inspect-meter "jvm.memory.used") ; there is also variant that accepts "registry" parameter
 {:name "jvm.memory.used",
  :measurements ({:statistic "VALUE", :value 2.90950008E8}),
  :availableTags {"area" ["heap" "nonheap"],
@@ -59,7 +59,7 @@ In order to query specific meter use `query-meters` function:
 It is possible to query meters for specific tag:
 
 ```clojure
-(query-meters registry "jvm.memory.used" "area" "heap")
+(m/query-meter registry "jvm.memory.used" {"area" "heap"})
 {:name "jvm.memory.used",
  :measurements ({:statistic "VALUE", :value 2.18463168E8}),
  :availableTags {"area" ["heap"], "id" ["G1 Eden Space" "G1 Survivor Space" "G1 Old Gen"]},
@@ -74,6 +74,8 @@ For more detailed documentation, see following documents:
 * [REGISTRY](docs/REGISTRY.md) - creating and configuring meter registry, information about all supported implementations;
 
 * [METERS](docs/METERS.md) - creating and using meters of various types;
+
+* [DRIVERS](docs/DRIVERS.md) - various meter registry backends list and configuration options;
 
 
 ## License
