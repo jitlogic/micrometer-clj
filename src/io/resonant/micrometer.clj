@@ -235,8 +235,20 @@
            (when munit {:baseUnit munit})))))))
 
 (defn get-timer
-  ([name tags]
-   (get-timer *registry* name tags {}))
+  "Creates timer.
+
+  (get-timer name)
+  (get-timer registry name)
+  (get-timer name tags)
+  (get-timer name tags options)
+  (get-timer registry name tags)
+  (get-timer registry name tags options)"
+  ([name]
+   (get-timer *registry* name {} {}))
+  ([arg1 arg2]
+   (if (registry? arg1)
+     (get-timer arg1 arg2 {} {})
+     (get-timer *registry* arg1 arg2 {})))
   ([arg1 arg2 arg3]
    (if (registry? arg1)
      (get-timer arg1 arg2 arg3 {})
@@ -264,29 +276,26 @@
            (swap! meters assoc-in [name tags] timer)
            timer))))))
 
-(defmacro with-timer [^Timer timer & body]
+(defmacro with-timer
+  "Executes `body` and records execution time to `timer`"
+  [^Timer timer & body]
   `(let [f# (fn [] ~@body)]
      (if ~timer (.recordCallable ^Timer ~timer f#) (f#))))
 
-(defn- parse-meter-args
-  ([name tags] ['io.resonant.micrometer/*registry* name tags {}])
-  ([registry name tags] [registry name tags {}])
-  ([registry name tags options] [registry name tags options]))
-
 (defmacro timed [args & body]
-  (let [[registry name tags options] (apply parse-meter-args args)]
-    `(let [timer# (get-timer (or ~registry *registry*) ~name ~tags ~options), f# (fn [] ~@body)]
-       (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#)))))
+  `(let [timer# (get-timer ~@args), f# (fn [] ~@body)]
+     (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#))))
 
 (defn add-timer
-  ([timer duration]
-   (when timer
-     (.record ^Timer timer (to-duration duration))))
+  ([arg1 duration]
+   (cond
+     (instance? Timer arg1) (.record ^Timer arg1 (to-duration duration))
+     (string? arg1) (when-let [timer (get-timer arg1)] (.record timer (to-duration duration)))))
   ([name tags duration]
    (when-let [timer (get-timer *registry* name tags)]
      (.record ^Timer timer (to-duration duration))))
-  ([registry name tags duration]
-   (when-let [timer (get-timer registry name tags)]
+  ([arg1 arg2 arg3 duration]
+   (when-let [timer (get-timer arg1 arg2 arg3)]
      (.record ^Timer timer (to-duration duration))))
   ([registry name tags options duration]
    (when-let [timer (get-timer registry name tags options)]
@@ -328,9 +337,8 @@
      (if ~timer (.recordCallable ^LongTaskTimer ~timer f#) (f#))))
 
 (defmacro task-timed [args & body]
-  (let [[registry name tags options] (apply parse-meter-args args)]
-    `(let [timer# (get-task-timer (or ~registry *registry*) ~name ~tags ~options), f# (fn [] ~@body)]
-       (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#)))))
+  `(let [timer# (get-task-timer ~@args), f# (fn [] ~@body)]
+     (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#))))
 
 (defn get-function-timer
   ([name tags obj cfn tfn time-unit]
@@ -441,8 +449,7 @@
            gauge))))))
 
 (defmacro defgauge [args & body]
-  (let [[registry name tags options] (apply parse-meter-args args)]
-    `(get-gauge ~registry ~name ~tags ~options (fn [] ~@body))))
+  `(get-gauge ~@args (fn [] ~@body)))
 
 (defn get-summary
   ([name tags]

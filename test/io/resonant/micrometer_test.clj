@@ -62,8 +62,9 @@
 
 (deftest test-timer-metrics
   (testing "Timer metrics registration and usage."
-    (let [metrics (m/meter-registry SIMPLE), tcnt (atom 0)
-          ^Timer timer (m/get-timer metrics "test" {:foo "bar"})]
+    (let [metrics (m/configure SIMPLE), tcnt (atom 0)
+          ^Timer timer (m/get-timer metrics "test" {:foo "bar"})
+          ^Timer t2 (m/get-timer "test2")]
       ; test timer (directly used)
       (is (= 42 (m/with-timer timer (Thread/sleep 2) 42)))
       (is (= 2 (.size (.getTags (.getId timer)))))
@@ -77,12 +78,14 @@
       (is (= 2 (.count timer)))
       ; test indireclty used null timer
       (m/timed ["test" {:foo "bar"}] (swap! tcnt inc))
-      (is (= 2 (.count timer)))
+      (is (= 3 (.count timer)))
       (is (= 2 @tcnt))
       (m/add-timer timer 10)
-      (is (= 3 (.count timer)))
+      (is (= 4 (.count timer)))
       (m/add-timer metrics "test" {:foo "bar"} 10)
-      (is (= 4 (.count timer))))))
+      (is (= 5 (.count timer)))
+      (m/add-timer "test2" 1)
+      (is (= 1 (.count t2))))))
 
 (deftest test-long-task-timer-metrics
   (testing "Long task timer registration and usage"
