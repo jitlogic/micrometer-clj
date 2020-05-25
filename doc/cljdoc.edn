@@ -1,0 +1,6 @@
+{:cljdoc.doc/tree
+ [["Intro" {:file "README.md"}]
+  ["Changes" {:file "CHANGELOG.md"}]
+  ["Configuring registry" {:file "doc/REGISTRY.md"}
+   ["Registry backends" {:file "doc/DRIVERS.md"}]]
+  ["Using meters" {:file "doc/METERS.md"}]]}

@@ -1,3 +1,5 @@
+# Registry backends
+
 ## Simple in-memory registry 
 
 This basic implementation is available in core library. Is is simple in-memory implementation that does not integrate

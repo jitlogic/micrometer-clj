@@ -2,15 +2,23 @@
 
 Clojure wrapper for java micrometer library. Provides several functions and macros wrapping micrometer meters.
 
+Latest jar:
+
+[![Clojars Project](https://clojars.org/io.resonant/micrometer-clj/latest-version.svg)](https://clojars.org/io.resonant/micrometer-clj) 
+
+Import micrometer namespace:
+
+```clojure
+(ns example 
+  (:require [io.resonant.micrometer :as m]))
+```
+
 ## Creating meter registry
 
 Meter registries are created using single `metrics` function supplied with configuration. Creating and using simple 
 in-memory meter registry:
 
 ```clojure
-(ns example 
-  (:require [io.resonant.micrometer :as m]))
-
 (m/configure {:type :simple, :tags {:foo "BAR"}})
 
 (defn -main [& args]
@@ -71,24 +79,25 @@ It is possible to query meters for specific tag:
 
 For more detailed documentation, see following documents:
 
-* [REGISTRY](docs/REGISTRY.md) - creating and configuring meter registry, information about all supported implementations;
+* [REGISTRY](doc/REGISTRY.md) - creating and configuring meter registry, information about all supported implementations;
 
-* [METERS](docs/METERS.md) - creating and using meters of various types;
+* [METERS](doc/METERS.md) - creating and using meters of various types;
 
-* [DRIVERS](docs/DRIVERS.md) - various meter registry backends list and configuration options;
+* [DRIVERS](doc/DRIVERS.md) - various meter registry backends list and configuration options;
 
 
 ## License
 
 Copyright © Rafal Lewczuk 2020 rafal.lewczuk@jitlogic.com
 
-This program and the accompanying materials are made available under the
-terms of the Eclipse Public License 2.0 which is available at
-http://www.eclipse.org/legal/epl-2.0.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-This Source Code may also be made available under the following Secondary
-Licenses when the conditions for such availability set forth in the Eclipse
-Public License, v. 2.0 are satisfied: GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or (at your
-option) any later version, with the GNU Classpath Exception which is available
-at https://www.gnu.org/software/classpath/license.html.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

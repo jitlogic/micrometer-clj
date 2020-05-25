@@ -185,6 +185,7 @@
     (setup-limits (select-keys cfg [:max-metrics :tag-limits :val-limits]))))
 
 (defn configure [m]
+  "Installs meter registry as global. If configuration data is passed instead, creates registry before installing."
   (alter-var-root
     #'*registry*
     (constantly
@@ -200,8 +201,10 @@
 (defn list-meters
   "Lists all registered meter names
 
+  ```
   (list-meters)
-  (list-meters registry)"
+  (list-meters registry)
+  ```"
   ([] (list-meters *registry*))
   ([{:keys [^MeterRegistry registry]}]
    (let [names (into #{} (for [^Meter meter (.getMeters registry)] (.getName (.getId meter))))]
@@ -227,10 +230,12 @@
 (defn inspect-meter
   "Returns information about tags and summary value of a meter based on its name and optionally tags
 
+  ```
   (inspect-meter name)
   (inspect-meter registry name)
   (inspect-meter name tags)
-  (inspect-meter registry name tags)"
+  (inspect-meter registry name tags)
+  ```"
   ([name]
    (inspect-meter *registry* name {}))
   ([arg1 arg2]
@@ -254,13 +259,15 @@
 (defn get-timer
   "Creates timer.
 
+  ```
   (get-timer timer)
   (get-timer name)
   (get-timer registry name)
   (get-timer name tags)
   (get-timer name tags options)
   (get-timer registry name tags)
-  (get-timer registry name tags options)"
+  (get-timer registry name tags options)
+  ```"
   ([arg1]
    (cond
      (instance? Timer arg1) arg1
@@ -299,13 +306,15 @@
 (defmacro timed
   "Executes body of code and records execution time.
 
+  ```
   (timed [timer] ...)
   (timed [name] ...)
   (timed [registry name ...)
   (timed [name tags] ...)
   (timed [name tags options] ...)
   (timed [registry name tags] ...)
-  (timed [registry name tags options ...)"
+  (timed [registry name tags options ...)
+  ```"
   [args & body]
   `(let [timer# (get-timer ~@args), f# (fn [] ~@body)]
      (if timer# (.recordCallable ^Timer timer# ^Runnable f#) (f#))))
@@ -313,13 +322,15 @@
 (defn add-timer
   "Increments timer.
 
+  ```
   (add-timer timer duration)
   (add-timer name duration)
   (add-timer name tags duration)
   (add-timer registry name duration)
   (add-timer registry name tags duration)
   (add-timer name tags options duration)
-  (add-timer registry name tags options duration)"
+  (add-timer registry name tags options duration)
+  ```"
   ([arg1 duration]
    (cond
      (instance? Timer arg1) (.record ^Timer arg1 (to-duration duration))
@@ -337,13 +348,15 @@
 (defn get-task-timer
   "Creates task timer.
 
+  ```
   (get-task-timer timer)
   (get-task-timer name)
   (get-task-timer name tags)
   (get-task-timer registry name)
   (get-task-timer registry name tags)
   (get-task-timer name tags options)
-  (get-task-timer registry name tags options)"
+  (get-task-timer registry name tags options)
+  ```"
   ([arg1]
    (cond
      (instance? LongTaskTimer arg1) arg1
@@ -383,25 +396,29 @@
 (defmacro task-timed [args & body]
   "Executes body of code and measures its execution time using constructed timer
 
+  ```
   (task-timed [timer] ...)
   (task-timed [name] ...)
   (task-timed [name tags] ...)
   (task-timed [registry name] ...)
   (task-timed [registry name tags] ...)
   (task-timed [name tags options] ...)
-  (task-timed [registry name tags options] ....)"
+  (task-timed [registry name tags options] ....)
+  ```"
   `(let [timer# (get-task-timer ~@args), f# (fn [] ~@body)]
      (if timer# (.recordCallable ^LongTaskTimer timer# ^Runnable f#) (f#))))
 
 (defn get-function-timer
   "Creates of returns cached function timer.
 
+  ```
   (get-function-timer name obj cfn tfn time-unit)
   (get-function-timer name tags obj cfn tfn time-unit)
   (get-function-timer registry name obj cfn tfn time-unit)
   (get-function-timer name tags options obj cfn tfn time-unit)
   (get-function-timer registry name tags obj cfn tfn time-unit)
-  (get-function-timer registry name tags options obj cfn tfn time-unit)"
+  (get-function-timer registry name tags options obj cfn tfn time-unit)
+  ```"
   ([name obj cfn tfn time-unit]
    (get-function-timer *registry* name {} {} obj cfn tfn time-unit))
   ([arg1 arg2 obj cfn tfn time-unit]
@@ -432,6 +449,7 @@
 (defn get-counter
   "Creates of returns cached counter.
 
+  ```
   (get-counter counter)
   (get-counter name)
   (get-counter name tags)
@@ -439,7 +457,7 @@
   (get-counter name tags options)
   (get-counter registry name tags)
   (get-counter registry name tags options)
-  "
+  ```"
   ([arg1]
    (cond
      (instance? Counter arg1) arg1
@@ -471,6 +489,7 @@
 (defn add-counter
   "Adds some value to counter
 
+  ```
   (add-counter counter n)
   (add-counter name n)
   (add-counter name tags n)
@@ -478,7 +497,7 @@
   (add-counter name tags options n)
   (add-counter registry name tags n)
   (add-counter registry name tags options n)
-  "
+  ```"
   ([arg1 n]
    (cond
      (instance? Counter arg1) (.increment arg1 n)
@@ -496,12 +515,14 @@
 (defn get-function-counter
   "Creates or returns cached function counter
 
+  ```
   (get-function-counter name obj cfn)
   (get-function-counter name tags obj cfn)
   (get-function-counter registry name obj cfn)
   (get-function-counter name tags options obj cfn)
   (get-function-counter registry name tags obj cfn)
-  (get-function-counter registry name tags options obj cfn)"
+  (get-function-counter registry name tags options obj cfn)
+  ```"
   ([arg1 obj cfn]
    (get-function-counter *registry* arg1 {} {} obj cfn))
   ([arg1 arg2 obj cfn]
@@ -532,12 +553,14 @@
 (defn get-gauge
   "Creates or returns cached gauge meter
 
+  ```
   (get-gauge name gfn)
   (get-gauge name tags gfn)
   (get-gauge registry name gfn)
   (get-gauge name tags options gfn)
   (get-gauge registry name tags gfn)
-  (get-gauge registry name tags options gfn)"
+  (get-gauge registry name tags options gfn)
+  ```"
   ([name gfn]
    (get-gauge *registry* name {} {} gfn))
   ([arg1 arg2 gfn]
@@ -569,24 +592,28 @@
 (defmacro defgauge [args & body]
   "Creates gauge from function body
 
+  ```
   (defgauge [name] ...)
   (defgauge [name tags] ...)
   (defgauge [registry name] ...)
   (defgauge [registry name tags] ...)
   (defgauge [name tags options] ...)
-  (defgauge [registry name tags options] ...)"
+  (defgauge [registry name tags options] ...)
+  ```"
   `(get-gauge ~@args (fn [] ~@body)))
 
 (defn get-summary
   "Creates or return cached distribution summary
 
+  ```
   (get-summary summary)
   (get-summary name)
   (get-summary name tags)
   (get-summary registry name)
   (get-summary registry name tags)
   (get-summary name tags options)
-  (get-summary registry name tags options)"
+  (get-summary registry name tags options)
+  ```"
   ([arg1]
    (cond
      (instance? DistributionSummary arg1) arg1
@@ -627,13 +654,15 @@
 (defn add-summary
   "Adds sample to distribution summary
 
+  ```
   (add-summary summary val)
   (add-summary name val)
   (add-summary name tags val)
   (add-summary registry name val)
   (add-summary registry name tags val)
   (add-summary name tags options val)
-  (add-summary registry name tags options val)"
+  (add-summary registry name tags options val)
+  ```"
   ([arg1 v]
    (cond
      (instance? DistributionSummary arg1) (.record arg1 (double v))

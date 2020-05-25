@@ -1,3 +1,16 @@
+## [0.0.3] - 2020-05-30
+
+
+
+## [0.0.2] - 2020-05-25
+
+* implement all missing meter types;
+
+* implement all remaining meter registries;
+
+* full documentation;
+
+
 ## [0.0.1] - 2020-05-05
 
 * inital revision
