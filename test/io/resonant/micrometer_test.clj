@@ -66,11 +66,11 @@
           ^Timer timer (m/get-timer metrics "test" {:foo "bar"})
           ^Timer t2 (m/get-timer "test2")]
       ; test timer (directly used)
-      (is (= 42 (m/with-timer timer (Thread/sleep 2) 42)))
+      (is (= 42 (m/timed [timer] (Thread/sleep 2) 42)))
       (is (= 2 (.size (.getTags (.getId timer)))))
       (is (= 1 (.count timer)))
       ; test null timer
-      (m/with-timer nil (swap! tcnt inc))
+      (m/timed [nil] (swap! tcnt inc))
       (is (= 1 (.count timer)))
       (is (= 1 @tcnt))
       ; test indirectly used timer
@@ -92,7 +92,7 @@
     (let [metrics (m/meter-registry SIMPLE), tcnt (atom 0),
           ^LongTaskTimer timer (m/get-task-timer metrics "test" {:foo "bar"})]
       (is (= 42)
-        (m/with-task-timer timer
+        (m/task-timed [timer]
           (Thread/sleep 2)
           (is (> (.duration timer TimeUnit/MILLISECONDS) 0.0))
           (swap! tcnt inc)
@@ -124,7 +124,7 @@
 
 (deftest test-counter-metrics
   (testing "Counter metrics registration and usage"
-    (let [metrics (m/meter-registry SIMPLE),
+    (let [metrics (m/configure SIMPLE),
           ^Counter counter (m/get-counter metrics "test" {:foo "bar"})]
       (m/add-counter counter 1.0)
       (is (= 1.0 (.count counter)))
@@ -132,8 +132,8 @@
       (is (= 1.0 (.count counter)))
       (m/add-counter metrics "test" {:foo "bar"} 1.0)
       (is (= 2.0 (.count counter)))
-      (m/add-counter nil "test" {:foo "bar"} 1.0)
-      (is (= 2.0 (.count counter))))))
+      (m/add-counter "test" {:foo "bar"} 1.0)
+      (is (= 3.0 (.count counter))))))
 
 (deftest test-tracking-counter
   (testing "Tracking metrics registration and usage"
@@ -161,8 +161,8 @@
 (deftest test-list-query-meters
   (let [metrics (m/meter-registry {:type :simple})
         lm (m/list-meters metrics)
-        qm1 (m/query-meters metrics "jvm.memory.used" {})
-        qm2 (m/query-meters metrics "jvm.memory.used" {"area" "heap"})]
+        qm1 (m/inspect-meter metrics "jvm.memory.used" {})
+        qm2 (m/inspect-meter metrics "jvm.memory.used" {"area" "heap"})]
     (is (vector? (:names lm)))
     (is (contains? (set (:names lm)) "jvm.memory.used"))
     (is (number? (-> qm1 :measurements first :value)))
