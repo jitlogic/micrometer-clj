@@ -46,7 +46,7 @@ Function `list-meters` will return names of all meters in a registry:
 In order to query specific meter use `query-meters` function:
 
 ```clojure
-(query-meters registry "jvm.memory.used")
+(query-meters "jvm.memory.used") ; there is also variant that accepts "registry" parameter
 {:name "jvm.memory.used",
  :measurements ({:statistic "VALUE", :value 2.90950008E8}),
  :availableTags {"area" ["heap" "nonheap"],
@@ -66,6 +66,14 @@ It is possible to query meters for specific tag:
  :description "The amount of used memory",
  :baseUnit "bytes"}
 ```
+
+## More information
+
+For more detailed documentation, see following documents:
+
+* [REGISTRY](docs/REGISTRY.md) - creating and configuring meter registry, information about all supported implementations;
+
+* [METERS](docs/METERS.md) - creating and using meters of various types;
 
 
 ## License
