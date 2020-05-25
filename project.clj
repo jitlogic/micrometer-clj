@@ -1,6 +1,6 @@
-(defproject io.resonant/micrometer-clj "0.0.2-SNAPSHOT"
+(defproject io.resonant/micrometer-clj "0.0.2"
   :description "Clojure wrappers for Micrometer library"
-  :url "http://resonant.io/libs/micrometer"
+  :url "http://github.com/jitlogic/micrometer-clj"
   :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
             :url "https://www.eclipse.org/legal/epl-2.0/"}
 
