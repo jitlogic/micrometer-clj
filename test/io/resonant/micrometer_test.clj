@@ -162,13 +162,15 @@
   (let [metrics (m/meter-registry {:type :simple})
         lm (m/list-meters metrics)
         qm1 (m/inspect-meter metrics "jvm.memory.used" {})
-        qm2 (m/inspect-meter metrics "jvm.memory.used" {"area" "heap"})]
+        qm2 (m/inspect-meter metrics "jvm.memory.used" {"area" "heap"})
+        qm3 (m/inspect-meter metrics "jvm.memory.used" {"area" "heap", "id" "G1 Old Gen"})]
     (is (vector? (:names lm)))
     (is (contains? (set (:names lm)) "jvm.memory.used"))
     (is (number? (-> qm1 :measurements first :value)))
     (is (vector? (get-in qm1 [:availableTags "id"])))
     (is (vector? (get-in qm2 [:availableTags "id"])))
-    (is (> (count (get-in qm1 [:availableTags "id"])) (count (get-in qm2 [:availableTags "id"]))))))
+    (is (> (count (get-in qm1 [:availableTags "id"])) (count (get-in qm2 [:availableTags "id"]))))
+    (is (> (count (get-in qm2 [:availableTags "id"])) (count (get-in qm3 [:availableTags "id"]))))))
 
 (deftest test-metrics-apply-filters
   (let [dsc {:histogram? true, :percentiles [50,90,95,99], :precision 2, :sla [90,95],

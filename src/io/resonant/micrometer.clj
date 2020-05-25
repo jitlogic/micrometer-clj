@@ -215,11 +215,14 @@
 (defn- acc-tags [acc [tagk tagv]]
   (assoc acc tagk (conj (get acc tagk #{}) tagv)))
 
-(defn- match-meter [name tagk tagv m]
+(defn- match-meter [name tags m]
   (let [^Meter$Id id (.getId m)]
     (and
       (= name (.getName id))
-      (or (nil? tagk) (first (for [^Tag t (.getTagsAsIterable id) :when (and (= tagk (.getKey t)) (= tagv (.getValue t)))] true))))))
+      (or (empty? tags)
+          (= tags (select-keys
+                    (into {} (for [^Tag t (.getTagsAsIterable id)] [(.getKey t) (.getValue t)]))
+                    (keys tags)))))))
 
 (defn inspect-meter
   "Returns information about tags and summary value of a meter based on its name and optionally tags
@@ -236,7 +239,7 @@
      (inspect-meter *registry* arg1 arg2)))
   ([{:keys [^MeterRegistry registry]} name tags]
    (let [[tagk tagv] (first tags), tagk (when tagk (to-string tagk)), tagv (when tagv (to-string tagv)),
-         meters (for [^Meter m (.getMeters registry) :when (match-meter name tagk tagv m)] m)]
+         meters (for [^Meter m (.getMeters registry) :when (match-meter name tags m)] m)]
      (when-not (empty? meters)
        (let [^Meter meter (first meters), mdesc (.getDescription (.getId meter)), munit (.getBaseUnit (.getId meter)),
              stats (for [^Meter m meters] (for [^Measurement s (.measure m)] [(.getStatistic s) (.getValue s)]))
