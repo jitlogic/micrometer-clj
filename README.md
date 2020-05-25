@@ -39,7 +39,7 @@ create custom meters using `get-*` functions:
 Function `list-meters` will return names of all meters in a registry:
 
 ```clojure
-(list-meters registry)
+(list-meters)  ; there is also variant that accepts "registry" parameter
 {:names ["process.uptime" "jvm.gc.max.data.size" "jvm.threads.peak" ... "jvm.threads.daemon"]}
 ```
 
