@@ -6,6 +6,8 @@ Latest jar:
 
 [![Clojars Project](https://clojars.org/io.resonant/micrometer-clj/latest-version.svg)](https://clojars.org/io.resonant/micrometer-clj) 
 
+[![cljdoc badge](https://cljdoc.org/badge/io.resonant/micrometer-clj)](https://cljdoc.org/d/io.resonant/micrometer-clj)
+
 Import micrometer namespace:
 
 ```clojure
