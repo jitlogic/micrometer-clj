@@ -1,4 +1,4 @@
-(defproject io.resonant/micrometer-clj "0.0.4-SNAPSHOT"
+(defproject io.resonant/micrometer-clj "0.0.4"
   :description "Clojure wrappers for Micrometer library"
   :url "https://github.com/jitlogic/micrometer-clj"
   :license {:name "Apache License, Version 2.0"

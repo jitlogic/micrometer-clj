@@ -1,6 +1,12 @@
+## [0.0.4] - 2020-06-26
+
+* small fixes
+
+
 ## [0.0.3] - 2020-05-25
 
 * update documentation, add cljdoc index
+
 
 ## [0.0.2] - 2020-05-25
 
@@ -18,4 +24,3 @@
 * core meters & functionalities;
 
 * prometheus integration
-
